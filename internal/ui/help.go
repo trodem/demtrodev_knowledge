@@ -75,6 +75,7 @@ Menu:
 Search files:
 - Recursive search by name contains or extension.
 - Sort by name/date/size.
+- Base path is required.
 
 Rename files:
 - Interactive batch rename with preview and confirmation.

@@ -15,7 +15,7 @@ func RunMenu(baseDir string) int {
 		fmt.Println("  1) Search files")
 		fmt.Println("  2) Rename files")
 		fmt.Println("  0) Exit")
-		fmt.Print("\n> ")
+		fmt.Print("\nSelect option: ")
 
 		choice := readLine(reader)
 		switch choice {

@@ -12,7 +12,7 @@ Repository guidelines for automated agents.
 - Core logic: `internal/`
 - Tools: `tools/` (interactive utilities)
 - Config files:
-  - `dm.json` (root includes)
+  - `dm.json` (optional root includes)
   - `packs/*/pack.json`
   - `packs/*/knowledge/`
 

@@ -3,12 +3,17 @@ package tools
 import (
 	"bufio"
 	"fmt"
+	"strings"
 
 	"cli/internal/filesearch"
 )
 
 func RunSearch(baseDir string, r *bufio.Reader) int {
-	base := prompt(r, "Base path", baseDir)
+	base := prompt(r, "Base path", "")
+	if strings.TrimSpace(base) == "" {
+		fmt.Println("Error: base path is required.")
+		return 1
+	}
 	name := prompt(r, "Name contains", "")
 	ext := prompt(r, "Extension (optional)", "")
 	sortBy := prompt(r, "Sort (name|date|size)", "name")

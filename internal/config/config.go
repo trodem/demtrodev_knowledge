@@ -47,7 +47,11 @@ func Load(path string, opts Options) (Config, error) {
 
 	baseCfg, err := loadFile(path)
 	if err != nil {
-		return baseCfg, err
+		if os.IsNotExist(err) {
+			baseCfg = Config{Include: []string{filepath.Join("packs", "*", "pack.json")}}
+		} else {
+			return baseCfg, err
+		}
 	}
 
 	if opts.Profile != "" {

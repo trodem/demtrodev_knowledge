@@ -36,7 +36,7 @@ func Run(args []string) int {
 		Pack:     opts.Pack,
 	})
 	if err != nil {
-		fmt.Println("Errore caricando dm.json:", err)
+		fmt.Println("Errore caricando config:", err)
 		return 1
 	}
 

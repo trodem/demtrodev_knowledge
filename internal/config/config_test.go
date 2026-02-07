@@ -9,12 +9,6 @@ import (
 func TestLoadWithInclude(t *testing.T) {
 	dir := t.TempDir()
 
-	mainCfg := `{
-  "include": ["packs/*/pack.json"]
-}`
-	if err := os.WriteFile(filepath.Join(dir, "dm.json"), []byte(mainCfg), 0644); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(filepath.Join(dir, "packs", "base"), 0755); err != nil {
 		t.Fatal(err)
 	}

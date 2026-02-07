@@ -35,7 +35,10 @@ go build -o dm.exe .
 ```
 
 ## Configuration
-`dm.json` is loaded from the executable directory.
+`dm` works without a config file. By default it loads:
+`packs/*/pack.json`
+
+If you want custom includes or profiles, create `dm.json`.
 
 ### Packs (recommended)
 Each pack is a folder that contains everything for a domain/project:
@@ -75,7 +78,7 @@ dm git-tools gcommit
 dm -p git find branch
 ```
 
-Example `dm.json`:
+Optional `dm.json` example:
 ```json
 {
   "include": ["packs/*/pack.json"]
