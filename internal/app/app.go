@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"cli/internal/config"
-	"cli/internal/filesearch"
 	"cli/internal/plugins"
 	"cli/internal/runner"
 	"cli/internal/search"
 	"cli/internal/store"
+	"cli/tools"
 	"cli/internal/ui"
 )
 
@@ -50,8 +50,7 @@ func Run(args []string) int {
 	// comandi globali
 	switch args[0] {
 	case "help":
-		ui.PrintHelp(cfg)
-		return 0
+		return runHelp(baseDir, cfg, args[1:])
 	case "aliases", "config":
 		ui.PrintAliases(cfg)
 		return 0
@@ -65,8 +64,8 @@ func Run(args []string) int {
 		return runValidate(cfg)
 	case "plugin":
 		return runPlugin(baseDir, args[1:])
-	case "files":
-		return runFiles(baseDir, args[1:])
+	case "tools":
+		return tools.RunMenu(baseDir)
 	case "find", "search":
 		if len(args) < 2 {
 			fmt.Println("Uso: dm find <query>")
@@ -358,6 +357,12 @@ func runPack(baseDir string, args []string) int {
 		return 0
 	}
 	switch args[0] {
+	case "help":
+		if len(args) < 2 {
+			fmt.Println("Uso: dm pack help <name>")
+			return 0
+		}
+		return runPackHelp(baseDir, args[1])
 	case "new":
 		if len(args) < 2 {
 			fmt.Println("Uso: dm pack new <name>")
@@ -440,77 +445,81 @@ func runPack(baseDir string, args []string) int {
 		fmt.Println("OK: pack attivo rimosso")
 		return 0
 	default:
-		fmt.Println("Uso: dm pack <new|list|info|use|current|unset> [name]")
+		fmt.Println("Uso: dm pack <new|list|info|use|current|unset|help> [name]")
 		return 0
 	}
 }
 
-func runFiles(baseDir string, args []string) int {
-	opts := parseFilesFlags(args)
-	if opts.BasePath == "" {
-		opts.BasePath = baseDir
+func runHelp(baseDir string, cfg config.Config, args []string) int {
+	if len(args) == 0 {
+		ui.PrintHelp(cfg)
+		return 0
 	}
-	results, err := filesearch.Find(filesearch.Options{
-		BasePath: opts.BasePath,
-		NamePart: opts.NamePart,
-		Ext:      opts.Ext,
-		SortBy:   opts.SortBy,
-	})
+	switch args[0] {
+	case "pack":
+		if len(args) < 2 {
+			fmt.Println("Uso: dm help pack <name>")
+			return 0
+		}
+		return runPackHelp(baseDir, args[1])
+	case "tools":
+		ui.PrintToolsHelp()
+		return 0
+	case "plugin":
+		ui.PrintPluginHelp()
+		return 0
+	default:
+		ui.PrintHelp(cfg)
+		return 0
+	}
+}
+
+func runPackHelp(baseDir, name string) int {
+	if !store.PackExists(baseDir, name) {
+		fmt.Println("Pack non trovato:", name)
+		return 1
+	}
+	packPath := filepath.Join(baseDir, "packs", name, "pack.json")
+	pf, err := store.LoadPackFile(packPath)
 	if err != nil {
 		fmt.Println("Errore:", err)
 		return 1
 	}
-	filesearch.RenderList(results)
+	helpPath := store.PackHelpPath(baseDir, name)
+	if data, err := os.ReadFile(helpPath); err == nil {
+		fmt.Println(string(data))
+	} else {
+		fmt.Printf("Pack help non trovato: %s\n", helpPath)
+	}
+	fmt.Printf("pack: %s\n", name)
+	fmt.Printf("path: %s\n", packPath)
+	if pf.Search.Knowledge != "" {
+		fmt.Printf("knowledge: %s\n", pf.Search.Knowledge)
+	}
+	if len(pf.Jump) > 0 {
+		fmt.Println("\nJUMPS")
+		ui.PrintMap(pf.Jump)
+	}
+	if len(pf.Run) > 0 {
+		fmt.Println("\nRUNS")
+		ui.PrintMap(pf.Run)
+	}
+	if len(pf.Projects) > 0 {
+		fmt.Println("\nPROJECTS")
+		ui.PrintProjects(convertProjects(pf.Projects))
+	}
 	return 0
 }
 
-type filesFlags struct {
-	BasePath string
-	NamePart string
-	Ext      string
-	SortBy   string
-}
-
-func parseFilesFlags(args []string) filesFlags {
-	var f filesFlags
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		if arg == "--path" && i+1 < len(args) {
-			f.BasePath = args[i+1]
-			i++
-			continue
-		}
-		if strings.HasPrefix(arg, "--path=") {
-			f.BasePath = strings.TrimPrefix(arg, "--path=")
-			continue
-		}
-		if arg == "--name" && i+1 < len(args) {
-			f.NamePart = args[i+1]
-			i++
-			continue
-		}
-		if strings.HasPrefix(arg, "--name=") {
-			f.NamePart = strings.TrimPrefix(arg, "--name=")
-			continue
-		}
-		if arg == "--ext" && i+1 < len(args) {
-			f.Ext = args[i+1]
-			i++
-			continue
-		}
-		if strings.HasPrefix(arg, "--ext=") {
-			f.Ext = strings.TrimPrefix(arg, "--ext=")
-			continue
-		}
-		if arg == "--sort" && i+1 < len(args) {
-			f.SortBy = args[i+1]
-			i++
-			continue
-		}
-		if strings.HasPrefix(arg, "--sort=") {
-			f.SortBy = strings.TrimPrefix(arg, "--sort=")
-			continue
+func convertProjects(in map[string]store.Project) map[string]config.Project {
+	out := map[string]config.Project{}
+	for k, v := range in {
+		out[k] = config.Project{
+			Path:     v.Path,
+			Commands: v.Commands,
 		}
 	}
-	return f
+	return out
 }
+
+// tools group handles search/rename

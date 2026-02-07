@@ -13,35 +13,92 @@ func PrintHelp(cfg config.Config) {
 	fmt.Println(`
 dm - personal CLI
 
-Comandi:
-  dm <name>                 menu interattivo (jump/project)
-  dm <project> <action>     esegue comando di progetto
-  dm run <alias>            esegue alias run
+Comandi principali:
+  dm <name>                 apre menu per jump/project
+  dm <project> <action>     esegue un comando di progetto
+  dm run <alias>            esegue un alias definito in run
   dm find <query>           cerca nei markdown knowledge
-  dm list <type>            elenca jumps/runs/projects/actions
-  dm add <type>             aggiunge jump/run/project/action
+  dm tools                  strumenti (search/rename)
+
+Gestione pack:
   dm pack new <name>        crea un nuovo pack
   dm pack list              elenca i pack
-  dm pack info <name>       mostra info pack
+  dm pack info <name>       mostra info pack (counts)
+  dm pack help <name>       mostra help del pack
   dm pack use <name>        imposta pack attivo
   dm pack current           mostra pack attivo
   dm pack unset             rimuove pack attivo
+
+Gestione config:
+  dm list <type>            elenca jumps/runs/projects/actions
+  dm add <type>             aggiunge jump/run/project/action
   dm validate               valida configurazione
-  dm plugin <cmd>           gestisce plugins
-  dm files --path <dir>     cerca file per nome o estensione
-                           flags: --name, --ext, --sort (name|date|size)
   dm aliases                mostra config in modo leggibile
-  dm help                   aiuto
+
+Plugins:
+  dm plugin list
+  dm plugin run <name> [args...]
+
+Help:
+  dm help
+  dm help tools
+  dm help plugin
+  dm help pack <name>
 
 Flags:
   --profile <name>              usa un profilo specifico
   --pack <name> / -p <name>     usa un pack specifico
   --no-cache                    disabilita cache config
+
+Esempi rapidi:
+  dm pack list
+  dm pack use git
+  dm -p git find branch
+  dm run gs
+  dm git-tools gcommit
+  dm tools
 `)
 
 	fmt.Println("Suggerimento CD (senza modifiche shell):")
 	fmt.Println(`  cd $(dm <name>  => scegli "Print path")`)
 	fmt.Println()
+}
+
+func PrintToolsHelp() {
+	fmt.Println(`
+dm tools
+
+Menu:
+  1) File search
+  2) Rename files
+
+File search:
+- Recursive search by name contains or extension.
+- Sort by name/date/size.
+
+Rename files:
+- Interactive batch rename with preview and confirmation.
+- Match is contains (not exact).
+
+Examples:
+  dm tools
+`)
+}
+
+func PrintPluginHelp() {
+	fmt.Println(`
+dm plugin list
+dm plugin run <name> [args...]
+
+Descrizione:
+- I plugin sono script in plugins/.
+- Windows: .ps1, .cmd, .bat, .exe
+- Linux/mac: .sh o eseguibili
+
+Esempi:
+  dm plugin list
+  dm plugin run myscript --foo bar
+`)
 }
 
 func PrintAliases(cfg config.Config) {

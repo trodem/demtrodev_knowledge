@@ -10,6 +10,7 @@ Repository guidelines for automated agents.
 ## Structure
 - Entry point: `main.go`
 - Core logic: `internal/`
+- Tools: `tools/` (interactive utilities)
 - Config files:
   - `dm.json` (root includes)
   - `packs/*/pack.json`
