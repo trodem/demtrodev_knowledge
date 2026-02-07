@@ -28,6 +28,8 @@ Comandi:
   dm pack unset             rimuove pack attivo
   dm validate               valida configurazione
   dm plugin <cmd>           gestisce plugins
+  dm files --path <dir>     cerca file per nome o estensione
+                           flags: --name, --ext, --sort (name|date|size)
   dm aliases                mostra config in modo leggibile
   dm help                   aiuto
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"cli/internal/config"
+	"cli/internal/filesearch"
 	"cli/internal/plugins"
 	"cli/internal/runner"
 	"cli/internal/search"
@@ -64,6 +65,8 @@ func Run(args []string) int {
 		return runValidate(cfg)
 	case "plugin":
 		return runPlugin(baseDir, args[1:])
+	case "files":
+		return runFiles(baseDir, args[1:])
 	case "find", "search":
 		if len(args) < 2 {
 			fmt.Println("Uso: dm find <query>")
@@ -440,4 +443,74 @@ func runPack(baseDir string, args []string) int {
 		fmt.Println("Uso: dm pack <new|list|info|use|current|unset> [name]")
 		return 0
 	}
+}
+
+func runFiles(baseDir string, args []string) int {
+	opts := parseFilesFlags(args)
+	if opts.BasePath == "" {
+		opts.BasePath = baseDir
+	}
+	results, err := filesearch.Find(filesearch.Options{
+		BasePath: opts.BasePath,
+		NamePart: opts.NamePart,
+		Ext:      opts.Ext,
+		SortBy:   opts.SortBy,
+	})
+	if err != nil {
+		fmt.Println("Errore:", err)
+		return 1
+	}
+	filesearch.RenderList(results)
+	return 0
+}
+
+type filesFlags struct {
+	BasePath string
+	NamePart string
+	Ext      string
+	SortBy   string
+}
+
+func parseFilesFlags(args []string) filesFlags {
+	var f filesFlags
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--path" && i+1 < len(args) {
+			f.BasePath = args[i+1]
+			i++
+			continue
+		}
+		if strings.HasPrefix(arg, "--path=") {
+			f.BasePath = strings.TrimPrefix(arg, "--path=")
+			continue
+		}
+		if arg == "--name" && i+1 < len(args) {
+			f.NamePart = args[i+1]
+			i++
+			continue
+		}
+		if strings.HasPrefix(arg, "--name=") {
+			f.NamePart = strings.TrimPrefix(arg, "--name=")
+			continue
+		}
+		if arg == "--ext" && i+1 < len(args) {
+			f.Ext = args[i+1]
+			i++
+			continue
+		}
+		if strings.HasPrefix(arg, "--ext=") {
+			f.Ext = strings.TrimPrefix(arg, "--ext=")
+			continue
+		}
+		if arg == "--sort" && i+1 < len(args) {
+			f.SortBy = args[i+1]
+			i++
+			continue
+		}
+		if strings.HasPrefix(arg, "--sort=") {
+			f.SortBy = strings.TrimPrefix(arg, "--sort=")
+			continue
+		}
+	}
+	return f
 }

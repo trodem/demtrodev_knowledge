@@ -11,6 +11,7 @@ Small personal CLI to jump to folders, run project commands, and search a knowle
 - [Project Actions](#project-actions)
 - [Search](#search)
 - [Plugins](#plugins)
+- [Files](#files)
 - [Project Layout](#project-layout)
 - [Changelog](#changelog)
 
@@ -153,6 +154,9 @@ dm plugin list
 dm plugin run <name> [args...]
 dm run <alias>
 dm find <query>
+dm files --path <dir> --name <text>
+dm files --path <dir> --ext pdf
+dm files --path <dir> --sort date
 dm <project> <action>
 dm <name>
 ```
@@ -181,6 +185,15 @@ dm find golang
 ```
 If `rg` (ripgrep) is installed, it is used automatically for faster search.
 If you use packs, pass `--pack <name>` so search uses that pack knowledge folder.
+
+## Files
+Find files by name (contains) or extension:
+```bash
+dm files --path . --name report
+dm files --path . --ext pdf
+dm files --path . --name report --ext pdf
+dm files --path . --sort size
+```
 
 ## Plugins
 Place scripts in `plugins/`:
