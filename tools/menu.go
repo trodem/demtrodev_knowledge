@@ -18,6 +18,7 @@ func RunMenu(baseDir string) int {
 		fmt.Println("  4) Recent files")
 		fmt.Println("  5) Pack backup")
 		fmt.Println("  6) Clean empty folders")
+		fmt.Println("  7) System snapshot")
 		fmt.Println("  0) Exit")
 		fmt.Print("\nSelect option: ")
 
@@ -49,9 +50,11 @@ func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
 		return RunPackBackup(baseDir, reader)
 	case "clean":
 		return RunCleanEmpty(reader)
+	case "system":
+		return RunSystem(reader)
 	default:
 		fmt.Println("Invalid tool:", name)
-		fmt.Println("Use: search|rename|note|recent|backup|clean")
+		fmt.Println("Use: search|rename|note|recent|backup|clean|system")
 		return 1
 	}
 }
@@ -70,6 +73,8 @@ func normalizeToolName(name string) string {
 		return "backup"
 	case "6", "clean", "c":
 		return "clean"
+	case "7", "system", "sys", "htop":
+		return "system"
 	default:
 		return ""
 	}

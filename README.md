@@ -211,7 +211,7 @@ If `rg` (ripgrep) is installed, it is used automatically for faster search.
 If you use packs, pass `--pack <name>` so search uses that pack knowledge folder.
 
 ## Tools
-Interactive menu for file search, rename, quick notes, recent files, pack backup, and clean empty folders:
+Interactive menu for file search, rename, quick notes, recent files, pack backup, clean empty folders, and system snapshot:
 ```bash
 dm tools
 dm -t
@@ -224,6 +224,9 @@ dm tools search
 dm tools s
 dm -t search
 dm -t s
+dm tools system
+dm tools sys
+dm tools htop
 ```
 
 ## Help
@@ -287,6 +290,7 @@ dm plugin run <name> [args...]
     |-- platform
     |-- runner
     |-- search
+    |-- systeminfo
     |-- store
     `-- ui
 ```

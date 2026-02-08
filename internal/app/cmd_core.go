@@ -606,8 +606,8 @@ func newToolsCommand(opts *flags) *cobra.Command {
 		Use:     "tools [tool]",
 		Aliases: []string{"tool"},
 		Short:   "Run tools menu or a specific tool",
-		Long:    "Interactive tools for search, rename, quick notes, recent files, backup, and cleanup.",
-		Example: "dm tools\ndm tools search\ndm -t s",
+		Long:    "Interactive tools for search, rename, quick notes, recent files, backup, cleanup, and system snapshot.",
+		Example: "dm tools\ndm tools search\ndm tools system\ndm -t s",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rt, err := loadRuntime(*opts)
@@ -696,6 +696,15 @@ func newToolsCommand(opts *flags) *cobra.Command {
 		"dm tools clean",
 		"clean",
 		"c",
+	)
+	addToolSubcommand(
+		"system",
+		"Show system/network snapshot",
+		"Shows host, CPU, memory, disks, interfaces, Wi-Fi networks, and ARP LAN neighbors.",
+		"dm tools system\ndm tools sys\ndm tools htop",
+		"system",
+		"sys",
+		"htop",
 	)
 
 	return toolsCmd
