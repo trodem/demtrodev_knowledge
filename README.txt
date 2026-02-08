@@ -1,76 +1,55 @@
-DM CLI - Quick Setup (Windows)
+dm CLI - Quick Start
+====================
 
-1) Keep this folder together:
-   - dm.exe
-   - packs\
-   - (optional) plugins\
+This package contains:
+- dm.exe (or dm on non-Windows)
+- install.ps1
+- README.md
+- README.txt
 
-2) Run from this folder:
-   - Open PowerShell here
-   - Type: .\dm.exe
+Install (recommended on Windows)
+--------------------------------
+1) Open PowerShell in this folder.
+2) Run:
+   .\install.ps1
+3) Open a new terminal.
+4) Verify:
+   dm --help
 
-3) If you want to type "dm" from anywhere (optional):
-   - Add this folder to the PATH environment variable
-   - Open a new terminal
-   - Type: dm
+Manual run without installation
+-------------------------------
+From this folder:
+  .\dm.exe --help
 
-How to add PATH (PowerShell, current user):
-1) Open PowerShell in the dm folder.
-2) Run this command:
-
-   $dir = (Get-Location).Path
-   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";" + $dir, "User")
-   Write-Host "Added to PATH. Open a new terminal."
-
-3) Close and reopen the terminal, then type: dm
-
-Basic Usage
------------
-Show help:
+Useful commands
+---------------
+General help:
   dm help
 
-List packs:
+Packs:
   dm pack list
-
-Set active pack:
-  dm pack use <name>
-
-Show pack info:
   dm pack info <name>
-
-Show pack command help:
-  dm pack --help
-  dm pack <name> --help
+  dm pack use <name>
+  dm pack current
 
 Tools menu:
   dm tools
+  dm tools system
 
-Search knowledge in a pack:
+Search:
+  dm find <query>
   dm -p <pack> find <query>
 
-Run a command alias:
+Run aliases and project actions:
   dm run <alias>
-
-Run a project action:
   dm <project> <action>
 
-Plugins
--------
-List plugins:
+Plugins:
   dm plugin list
-
-Run a plugin:
   dm plugin run <name>
-
-Example (open Paint):
-  dm plugin run paint
 
 Notes
 -----
-- dm.json is optional. If present, it is used for custom includes/profiles.
-- Packs are loaded from: packs\<name>\pack.json
-- Quick notes are stored in: packs\<pack>\knowledge\inbox.md
-
-Notes:
-- dm.json is optional. If present, it is used for custom includes/profiles.
-- Packs are loaded from: packs\<name>\pack.json
+- By default, packs are loaded from: packs/<name>/pack.json
+- dm.json is optional (custom includes/profiles)
+- Set NO_COLOR=1 to disable ANSI colors

@@ -21,60 +21,64 @@ func ShowMenu(cfg config.Config, name, targetPath, baseDir string) {
 	}
 
 	fmt.Println()
-	fmt.Printf("Target: %s\n", name)
-	fmt.Printf("Path:   %s\n\n", targetPath)
+	PrintSection("Target")
+	PrintKV("Name", name)
+	PrintKV("Path", targetPath)
 
 	// base menu
-	fmt.Println("Choose an action:")
-	fmt.Println("  1) Print path (per cd $(dm ...))")
-	fmt.Println("  2) Open Explorer/Finder")
-	fmt.Println("  3) Open VS Code (code .)")
-	fmt.Println("  4) Open new terminal here")
+	PrintSection("Actions")
+	PrintMenuLine("1", "[p] Print path (for: cd $(dm ...))", true)
+	PrintMenuLine("2", "[o] Open Explorer/Finder", false)
+	PrintMenuLine("3", "[v] Open VS Code (code .)", false)
+	PrintMenuLine("4", "[t] Open new terminal here", false)
 
 	// if project: list actions
 	actionKeys := []string{}
 	if isProject && len(proj.Commands) > 0 {
 		actionKeys = sortedKeys(proj.Commands)
-		fmt.Println("  5) Project actions...")
+		PrintMenuLine("5", "[a] Project actions...", false)
 	}
+	PrintMenuLine("0", "[x] Exit", false)
 
-	fmt.Print("\n> ")
+	fmt.Print("\nSelect option > ")
 	choice := readLine()
 
 	switch choice {
-	case "1", "":
+	case "1", "p", "P", "":
 		// default: path
 		fmt.Println(filepath.ToSlash(targetPath))
 		return
-	case "2":
+	case "2", "o", "O":
 		platform.OpenFileBrowser(targetPath)
 		return
-	case "3":
+	case "3", "v", "V":
 		platform.OpenVSCode(targetPath)
 		return
-	case "4":
+	case "4", "t", "T":
 		platform.OpenTerminal(targetPath)
 		return
-	case "5":
+	case "5", "a", "A":
 		if len(actionKeys) == 0 {
-			fmt.Println("No actions defined for this project.")
+			fmt.Println(Warn("No actions defined for this project."))
 			return
 		}
-		fmt.Println("\nAvailable actions:")
+		PrintSection("Project Actions")
 		for i, a := range actionKeys {
-			fmt.Printf("  %d) %s\n", i+1, a)
+			PrintMenuLine(fmt.Sprintf("%d", i+1), a, false)
 		}
-		fmt.Print("\n> ")
+		fmt.Print("\nSelect action > ")
 		sel := readLine()
 		idx := parseIndex(sel)
 		if idx < 1 || idx > len(actionKeys) {
-			fmt.Println("Invalid selection.")
+			fmt.Println(Error("Invalid selection."))
 			return
 		}
 		runner.RunProjectCommand(cfg, name, actionKeys[idx-1], baseDir)
 		return
+	case "0", "x", "X":
+		return
 	default:
-		fmt.Println("Invalid selection.")
+		fmt.Println(Error("Invalid selection."))
 		return
 	}
 }

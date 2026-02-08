@@ -5,26 +5,28 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"cli/internal/ui"
 )
 
 func RunMenu(baseDir string) int {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-		fmt.Println("\nTools:")
-		fmt.Println("  1) Search files")
-		fmt.Println("  2) Rename files")
-		fmt.Println("  3) Quick note")
-		fmt.Println("  4) Recent files")
-		fmt.Println("  5) Pack backup")
-		fmt.Println("  6) Clean empty folders")
-		fmt.Println("  7) System snapshot")
-		fmt.Println("  0) Exit")
-		fmt.Print("\nSelect option: ")
+		ui.PrintSection("Tools")
+		ui.PrintMenuLine("1", "[s] Search files", false)
+		ui.PrintMenuLine("2", "[r] Rename files", false)
+		ui.PrintMenuLine("3", "[n] Quick note", false)
+		ui.PrintMenuLine("4", "[e] Recent files", false)
+		ui.PrintMenuLine("5", "[b] Pack backup", false)
+		ui.PrintMenuLine("6", "[c] Clean empty folders", false)
+		ui.PrintMenuLine("7", "[y] System snapshot", false)
+		ui.PrintMenuLine("0", "[x] Exit", true)
+		fmt.Print("\nSelect option > ")
 
 		choice := readLine(reader)
 		switch choice {
-		case "0", "exit", "Exit", "":
+		case "0", "x", "X", "exit", "Exit", "":
 			return 0
 		default:
 			_ = RunByNameWithReader(baseDir, choice, reader)
@@ -53,8 +55,8 @@ func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
 	case "system":
 		return RunSystem(reader)
 	default:
-		fmt.Println("Invalid tool:", name)
-		fmt.Println("Use: search|rename|note|recent|backup|clean|system")
+		fmt.Println(ui.Error("Invalid tool:"), name)
+		fmt.Println(ui.Muted("Use: search|rename|note|recent|backup|clean|system"))
 		return 1
 	}
 }
@@ -69,11 +71,15 @@ func normalizeToolName(name string) string {
 		return "note"
 	case "4", "recent", "rec":
 		return "recent"
+	case "e":
+		return "recent"
 	case "5", "backup", "b":
 		return "backup"
 	case "6", "clean", "c":
 		return "clean"
 	case "7", "system", "sys", "htop":
+		return "system"
+	case "y":
 		return "system"
 	default:
 		return ""

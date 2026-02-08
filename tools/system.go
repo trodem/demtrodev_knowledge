@@ -7,44 +7,47 @@ import (
 	"time"
 
 	"cli/internal/systeminfo"
+	"cli/internal/ui"
 )
 
 func RunSystem(_ *bufio.Reader) int {
 	s := systeminfo.Collect()
 
-	fmt.Printf("Snapshot: %s\n", s.GeneratedAt.Format(time.RFC3339))
-	fmt.Println("== System ==")
-	fmt.Printf("Host: %s\n", valueOrDash(s.System.Hostname))
-	fmt.Printf("OS: %s/%s\n", s.System.OS, s.System.Arch)
-	fmt.Printf("CPU: %d\n", s.System.CPUCount)
+	ui.PrintSection("System Snapshot")
+	ui.PrintKV("Generated", s.GeneratedAt.Format(time.RFC3339))
+	ui.PrintKV("Host", valueOrDash(s.System.Hostname))
+	ui.PrintKV("OS", fmt.Sprintf("%s/%s", s.System.OS, s.System.Arch))
+	ui.PrintKV("CPU", fmt.Sprintf("%d", s.System.CPUCount))
 	if !s.System.BootTime.IsZero() {
 		uptime := time.Since(s.System.BootTime).Round(time.Minute)
-		fmt.Printf("Boot time: %s\n", s.System.BootTime.Format(time.RFC3339))
-		fmt.Printf("Uptime: %s\n", uptime)
+		ui.PrintKV("Boot time", s.System.BootTime.Format(time.RFC3339))
+		ui.PrintKV("Uptime", uptime.String())
 	}
 	if s.Memory.TotalBytes > 0 {
 		used := s.Memory.TotalBytes - s.Memory.FreeBytes
-		fmt.Printf("Memory: %s used / %s total\n", formatBytes(used), formatBytes(s.Memory.TotalBytes))
+		ui.PrintKV("Memory", fmt.Sprintf("%s used / %s total", formatBytes(used), formatBytes(s.Memory.TotalBytes)))
 	}
 
-	fmt.Println("\n== Disks ==")
+	ui.PrintSection("Disks")
 	if len(s.Disks) == 0 {
-		fmt.Println("- none")
+		fmt.Println(ui.Muted("- none"))
 	} else {
+		fmt.Printf("%-5s %-13s %-13s %-6s\n", "Name", "Used", "Total", "Use%")
 		for _, d := range s.Disks {
 			used := d.SizeBytes - d.FreeBytes
 			usedPct := 0.0
 			if d.SizeBytes > 0 {
 				usedPct = (float64(used) / float64(d.SizeBytes)) * 100
 			}
-			fmt.Printf("- %s: %s used / %s total (%.1f%%)\n", d.Name, formatBytes(used), formatBytes(d.SizeBytes), usedPct)
+			fmt.Printf("%-5s %-13s %-13s %5.1f%%\n", d.Name, formatBytes(used), formatBytes(d.SizeBytes), usedPct)
 		}
 	}
 
-	fmt.Println("\n== Interfaces ==")
+	ui.PrintSection("Interfaces")
 	if len(s.Interfaces) == 0 {
-		fmt.Println("- none")
+		fmt.Println(ui.Muted("- none"))
 	} else {
+		fmt.Printf("%-30s %-6s %-17s %s\n", "Name", "State", "MAC", "Addresses")
 		for _, inf := range s.Interfaces {
 			state := "down"
 			if inf.Up {
@@ -54,41 +57,43 @@ func RunSystem(_ *bufio.Reader) int {
 			if len(inf.Addresses) > 0 {
 				addrs = strings.Join(inf.Addresses, ", ")
 			}
-			fmt.Printf("- %s (%s) mac=%s\n  %s\n", inf.Name, state, valueOrDash(inf.Hardware), addrs)
+			fmt.Printf("%-30s %-6s %-17s %s\n", inf.Name, state, valueOrDash(inf.Hardware), addrs)
 		}
 	}
 
-	fmt.Println("\n== Wi-Fi ==")
-	fmt.Printf("Connected: %s\n", valueOrDash(s.ConnectedWiFi))
+	ui.PrintSection("Wi-Fi")
+	ui.PrintKV("Connected", valueOrDash(s.ConnectedWiFi))
 	if len(s.WiFiNetworks) == 0 {
-		fmt.Println("- no networks detected")
+		fmt.Println(ui.Muted("- no networks detected"))
 	} else {
+		fmt.Printf("%-32s %-8s %s\n", "SSID", "Signal", "Auth")
 		for _, net := range s.WiFiNetworks {
-			fmt.Printf("- %s | signal=%s | auth=%s\n", valueOrDash(net.SSID), valueOrDash(net.Signal), valueOrDash(net.Authentication))
+			fmt.Printf("%-32s %-8s %s\n", valueOrDash(net.SSID), valueOrDash(net.Signal), valueOrDash(net.Authentication))
 		}
 	}
 
-	fmt.Println("\n== LAN Neighbors (ARP) ==")
+	ui.PrintSection("LAN Neighbors (ARP)")
 	if len(s.LANNeighbors) == 0 {
-		fmt.Println("- none")
+		fmt.Println(ui.Muted("- none"))
 	} else {
 		limit := len(s.LANNeighbors)
 		if limit > 25 {
 			limit = 25
 		}
+		fmt.Printf("%-16s %-17s %s\n", "IP", "MAC", "Type")
 		for i := 0; i < limit; i++ {
 			n := s.LANNeighbors[i]
-			fmt.Printf("- %s | %s | %s\n", n.IP, n.MAC, n.Type)
+			fmt.Printf("%-16s %-17s %s\n", n.IP, n.MAC, n.Type)
 		}
 		if len(s.LANNeighbors) > limit {
-			fmt.Printf("- ... and %d more\n", len(s.LANNeighbors)-limit)
+			fmt.Println(ui.Muted(fmt.Sprintf("... and %d more", len(s.LANNeighbors)-limit)))
 		}
 	}
 
 	if len(s.Warnings) > 0 {
-		fmt.Println("\n== Notes ==")
+		ui.PrintSection("Warnings")
 		for _, w := range s.Warnings {
-			fmt.Printf("- %s\n", w)
+			fmt.Printf("- %s\n", ui.Warn(w))
 		}
 	}
 	return 0

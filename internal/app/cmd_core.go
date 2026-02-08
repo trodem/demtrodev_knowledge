@@ -246,14 +246,16 @@ func newPackCommand(opts *flags) *cobra.Command {
 			return err
 		}
 		if len(names) == 0 {
-			fmt.Println("No packs found.")
+			fmt.Println(ui.Warn("No packs found."))
 			return nil
 		}
 		sort.Strings(names)
+		ui.PrintSection("Packs")
+		fmt.Printf("%-18s %-34s %-12s %s\n", "Name", "Summary", "Owner", "Tags")
 		for _, name := range names {
 			info, err := store.GetPackInfo(rt.BaseDir, name)
 			if err != nil {
-				fmt.Printf("%s | error: %v\n", name, err)
+				fmt.Printf("%-18s %s\n", name, ui.Error(fmt.Sprintf("error: %v", err)))
 				continue
 			}
 			summary := strings.TrimSpace(info.Summary)
@@ -268,7 +270,7 @@ func newPackCommand(opts *flags) *cobra.Command {
 			if len(info.Tags) > 0 {
 				tags = strings.Join(info.Tags, ",")
 			}
-			fmt.Printf("%s | %s | owner:%s | tags:%s\n", name, summary, owner, tags)
+			fmt.Printf("%-18s %-34s %-12s %s\n", name, summary, owner, tags)
 		}
 		return nil
 	}
@@ -434,10 +436,11 @@ func newPackCommand(opts *flags) *cobra.Command {
 				return exitCodeError{code: 1}
 			}
 			if len(issues) == 0 {
-				fmt.Printf("OK: pack '%s' looks good\n", name)
+				fmt.Printf("%s pack '%s' looks good\n", ui.OK("OK:"), name)
 				return nil
 			}
-			fmt.Printf("pack '%s' issues:\n", name)
+			ui.PrintSection(fmt.Sprintf("Pack Doctor: %s", name))
+			fmt.Printf("%s %d issue(s) found\n", ui.Warn("WARN:"), len(issues))
 			for _, issue := range issues {
 				fmt.Printf("- %s\n", issue)
 			}

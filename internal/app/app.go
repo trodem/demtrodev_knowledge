@@ -472,11 +472,11 @@ func runPack(baseDir string, args []string) int {
 	case "list":
 		items, err := store.ListPacks(baseDir)
 		if err != nil {
-			fmt.Println("Error:", err)
+			fmt.Println(ui.Error("Error:"), err)
 			return 1
 		}
 		if len(items) == 0 {
-			fmt.Println("No packs found.")
+			fmt.Println(ui.Warn("No packs found."))
 			return 0
 		}
 		for _, name := range items {
@@ -490,36 +490,38 @@ func runPack(baseDir string, args []string) int {
 		}
 		info, err := store.GetPackInfo(baseDir, args[1])
 		if err != nil {
-			fmt.Println("Error:", err)
+			fmt.Println(ui.Error("Error:"), err)
 			return 1
 		}
-		fmt.Printf("pack: %s\n", info.Name)
-		fmt.Printf("path: %s\n", info.Path)
+		ui.PrintSection("Pack Info")
+		ui.PrintKV("Pack", info.Name)
+		ui.PrintKV("Path", info.Path)
 		if strings.TrimSpace(info.Description) != "" {
-			fmt.Printf("description: %s\n", info.Description)
+			ui.PrintKV("Description", info.Description)
 		}
 		if strings.TrimSpace(info.Summary) != "" {
-			fmt.Printf("summary: %s\n", info.Summary)
+			ui.PrintKV("Summary", info.Summary)
 		}
 		if strings.TrimSpace(info.Owner) != "" {
-			fmt.Printf("owner: %s\n", info.Owner)
+			ui.PrintKV("Owner", info.Owner)
 		}
 		if len(info.Tags) > 0 {
-			fmt.Printf("tags: %s\n", strings.Join(info.Tags, ", "))
+			ui.PrintKV("Tags", strings.Join(info.Tags, ", "))
 		}
 		if info.Knowledge != "" {
-			fmt.Printf("knowledge: %s\n", info.Knowledge)
+			ui.PrintKV("Knowledge", info.Knowledge)
 		}
+		ui.PrintSection("Counts")
+		ui.PrintKV("Jumps", fmt.Sprintf("%d", info.Jumps))
+		ui.PrintKV("Runs", fmt.Sprintf("%d", info.Runs))
+		ui.PrintKV("Projects", fmt.Sprintf("%d", info.Projects))
+		ui.PrintKV("Actions", fmt.Sprintf("%d", info.Actions))
 		if len(info.Examples) > 0 {
-			fmt.Println("examples:")
+			ui.PrintSection("Examples")
 			for _, ex := range info.Examples {
 				fmt.Printf("- %s\n", ex)
 			}
 		}
-		fmt.Printf("jumps: %d\n", info.Jumps)
-		fmt.Printf("runs: %d\n", info.Runs)
-		fmt.Printf("projects: %d\n", info.Projects)
-		fmt.Printf("actions: %d\n", info.Actions)
 		return 0
 	case "use":
 		if len(args) < 2 {

@@ -34,6 +34,25 @@ Small personal CLI to jump to folders, run project commands, and search a knowle
 go build -o dm.exe .
 ```
 
+Local release package (Windows PowerShell):
+```powershell
+.\release.ps1 -Version v0.2.0
+```
+All standard targets (windows/linux/darwin):
+```powershell
+.\release.ps1 -Version v0.2.0 -AllTargets
+```
+This produces:
+- `dist/dm-v0.2.0-windows-amd64/`
+- `dist/dm-v0.2.0-windows-amd64.zip`
+- `dist/dm-v0.2.0-windows-amd64.zip.sha256`
+Each artifact folder/zip includes:
+- `dm` or `dm.exe`
+- `install.ps1`
+- `README.txt`
+- `README.md`
+- `LICENSE` (if present)
+
 ## Configuration
 `dm` works without a config file. By default it loads:
 `packs/*/pack.json`
@@ -216,6 +235,9 @@ Interactive menu for file search, rename, quick notes, recent files, pack backup
 dm tools
 dm -t
 ```
+The interactive menus and some command outputs use ANSI colors when supported by the terminal.
+Set `NO_COLOR=1` to disable colors.
+
 For tools that ask `Base path`, the default is the current working directory.
 
 Run a specific tool directly:
