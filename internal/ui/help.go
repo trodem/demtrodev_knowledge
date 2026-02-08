@@ -10,7 +10,7 @@ import (
 
 func PrintHelp(cfg config.Config) {
 	_ = cfg
-	fmt.Println(`
+	fmt.Print(`
 dm - personal CLI
 
 Comandi principali:
@@ -19,6 +19,8 @@ Comandi principali:
   dm run <alias>            esegue un alias definito in run
   dm find <query>           cerca nei markdown knowledge
   dm tools                  strumenti (search/rename/note/recent/backup/clean)
+  dm tools <tool>           avvia un tool diretto (es: search, s)
+  dm -t [tool]              scorciatoia per tools
 
 Gestione pack:
   dm pack new <name>        crea un nuovo pack
@@ -57,6 +59,8 @@ Esempi rapidi:
   dm run gs
   dm git-tools gcommit
   dm tools
+  dm tools search
+  dm -t s
 `)
 
 	fmt.Println("Suggerimento CD (senza modifiche shell):")
@@ -65,8 +69,10 @@ Esempi rapidi:
 }
 
 func PrintToolsHelp() {
-	fmt.Println(`
+	fmt.Print(`
 dm tools
+dm tools <tool>
+dm -t [tool]
 
 Menu:
   1) Search files
@@ -102,11 +108,13 @@ Clean empty folders:
 
 Examples:
   dm tools
+  dm tools search
+  dm -t s
 `)
 }
 
 func PrintPluginHelp() {
-	fmt.Println(`
+	fmt.Print(`
 dm plugin list
 dm plugin run <name> [args...]
 

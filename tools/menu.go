@@ -23,23 +23,55 @@ func RunMenu(baseDir string) int {
 
 		choice := readLine(reader)
 		switch choice {
-		case "1":
-			_ = RunSearch(baseDir, reader)
-		case "2":
-			_ = RunRename(baseDir, reader)
-		case "3":
-			_ = RunQuickNote(baseDir, reader)
-		case "4":
-			_ = RunRecent(baseDir, reader)
-		case "5":
-			_ = RunPackBackup(baseDir, reader)
-		case "6":
-			_ = RunCleanEmpty(baseDir, reader)
 		case "0", "exit", "Exit", "":
 			return 0
 		default:
-			fmt.Println("Invalid choice.")
+			_ = RunByNameWithReader(baseDir, choice, reader)
 		}
+	}
+}
+
+func RunByName(baseDir, name string) int {
+	return RunByNameWithReader(baseDir, name, bufio.NewReader(os.Stdin))
+}
+
+func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
+	switch normalizeToolName(name) {
+	case "search":
+		return RunSearch(baseDir, reader)
+	case "rename":
+		return RunRename(baseDir, reader)
+	case "note":
+		return RunQuickNote(baseDir, reader)
+	case "recent":
+		return RunRecent(baseDir, reader)
+	case "backup":
+		return RunPackBackup(baseDir, reader)
+	case "clean":
+		return RunCleanEmpty(baseDir, reader)
+	default:
+		fmt.Println("Tool non valido:", name)
+		fmt.Println("Usa: search|rename|note|recent|backup|clean")
+		return 1
+	}
+}
+
+func normalizeToolName(name string) string {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "1", "search", "s":
+		return "search"
+	case "2", "rename", "r":
+		return "rename"
+	case "3", "note", "n":
+		return "note"
+	case "4", "recent", "rec":
+		return "recent"
+	case "5", "backup", "b":
+		return "backup"
+	case "6", "clean", "c":
+		return "clean"
+	default:
+		return ""
 	}
 }
 

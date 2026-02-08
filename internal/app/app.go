@@ -11,8 +11,8 @@ import (
 	"cli/internal/runner"
 	"cli/internal/search"
 	"cli/internal/store"
-	"cli/tools"
 	"cli/internal/ui"
+	"cli/tools"
 )
 
 func Run(args []string) int {
@@ -75,7 +75,10 @@ func Run(args []string) int {
 	case "plugin":
 		return runPlugin(baseDir, args[1:])
 	case "tools":
-		return tools.RunMenu(baseDir)
+		if len(args) == 1 {
+			return tools.RunMenu(baseDir)
+		}
+		return tools.RunByName(baseDir, args[1])
 	case "find", "search":
 		if len(args) < 2 {
 			fmt.Println("Uso: dm find <query>")
@@ -140,7 +143,6 @@ func fileExists(path string) bool {
 	return false
 }
 
-
 type flags struct {
 	Profile string
 	NoCache bool
@@ -152,6 +154,14 @@ func parseFlags(args []string) (flags, []string) {
 	var f flags
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
+		if arg == "-t" || arg == "--tools" {
+			out = append(out, "tools")
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				out = append(out, args[i+1])
+				i++
+			}
+			continue
+		}
 		if arg == "--no-cache" {
 			f.NoCache = true
 			continue

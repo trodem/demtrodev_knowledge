@@ -160,6 +160,8 @@ dm plugin run <name> [args...]
 dm run <alias>
 dm find <query>
 dm tools
+dm tools <tool>
+dm -t [tool]
 dm <project> <action>
 dm <name>
 ```
@@ -193,6 +195,15 @@ If you use packs, pass `--pack <name>` so search uses that pack knowledge folder
 Interactive menu for file search, rename, quick notes, recent files, pack backup, and clean empty folders:
 ```bash
 dm tools
+dm -t
+```
+
+Run a specific tool directly:
+```bash
+dm tools search
+dm tools s
+dm -t search
+dm -t s
 ```
 
 ## Help
