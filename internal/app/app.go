@@ -15,30 +15,15 @@ import (
 	"cli/tools"
 )
 
-func Run(args []string) int {
-	baseDir, err := exeDir()
-	if err != nil {
-		fmt.Println("Errore: non riesco a determinare la cartella dell'eseguibile:", err)
-		return 1
-	}
-
+func runLegacy(args []string) int {
 	opts, rest := parseFlags(args)
-
-	cfgPath := filepath.Join(baseDir, "dm.json")
-	if opts.Pack == "" {
-		if active, err := store.GetActivePack(baseDir); err == nil && active != "" {
-			opts.Pack = active
-		}
-	}
-	cfg, err := config.Load(cfgPath, config.Options{
-		Profile:  opts.Profile,
-		UseCache: !opts.NoCache,
-		Pack:     opts.Pack,
-	})
+	rt, err := loadRuntime(opts)
 	if err != nil {
-		fmt.Println("Errore caricando config:", err)
+		fmt.Println("Errore:", err)
 		return 1
 	}
+	baseDir := rt.BaseDir
+	cfg := rt.Config
 
 	if len(rest) == 0 {
 		packs, _ := store.ListPacks(baseDir)
@@ -99,6 +84,15 @@ func Run(args []string) int {
 	}
 
 	// PROJECT MODE: dm <project> <action>
+	return runTargetOrSearch(baseDir, cfg, args)
+}
+
+func runTargetOrSearch(baseDir string, cfg config.Config, args []string) int {
+	if len(args) == 0 {
+		return 0
+	}
+
+	// PROJECT MODE: dm <project> <action>
 	if _, ok := cfg.Projects[args[0]]; ok && len(args) >= 2 {
 		action := args[1]
 		runner.RunProjectCommand(cfg, args[0], action, baseDir)
@@ -143,6 +137,36 @@ func fileExists(path string) bool {
 	return false
 }
 
+type runtimeContext struct {
+	BaseDir string
+	Config  config.Config
+}
+
+func loadRuntime(opts flags) (runtimeContext, error) {
+	baseDir, err := exeDir()
+	if err != nil {
+		return runtimeContext{}, fmt.Errorf("non riesco a determinare la cartella dell'eseguibile: %w", err)
+	}
+	cfgPath := filepath.Join(baseDir, "dm.json")
+	if opts.Pack == "" {
+		if active, err := store.GetActivePack(baseDir); err == nil && active != "" {
+			opts.Pack = active
+		}
+	}
+	cfg, err := config.Load(cfgPath, config.Options{
+		Profile:  opts.Profile,
+		UseCache: !opts.NoCache,
+		Pack:     opts.Pack,
+	})
+	if err != nil {
+		return runtimeContext{}, fmt.Errorf("caricando config: %w", err)
+	}
+	return runtimeContext{
+		BaseDir: baseDir,
+		Config:  cfg,
+	}, nil
+}
+
 type flags struct {
 	Profile string
 	NoCache bool
@@ -154,8 +178,8 @@ func parseFlags(args []string) (flags, []string) {
 	var f flags
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-		if arg == "-t" || arg == "--tools" {
-			out = append(out, "tools")
+		if group, ok := mapGroupShortcut(arg); ok {
+			out = append(out, group)
 			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
 				out = append(out, args[i+1])
 				i++
@@ -549,5 +573,3 @@ func convertProjects(in map[string]store.Project) map[string]config.Project {
 	}
 	return out
 }
-
-// tools group handles search/rename

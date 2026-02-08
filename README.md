@@ -162,12 +162,18 @@ dm find <query>
 dm tools
 dm tools <tool>
 dm -t [tool]
+dm -k [cmd]
+dm -g [cmd]
 dm <project> <action>
 dm <name>
 ```
 
 Notes:
 - Use `-p <pack>` or set a default pack with `dm pack use <name>`.
+- Group shortcuts:
+  - `-t` / `--tools` => `tools`
+  - `-k` / `--packs` => `pack`
+  - `-g` / `--plugins` => `plugin`
 
 Interactive target:
 ```bash
@@ -197,6 +203,7 @@ Interactive menu for file search, rename, quick notes, recent files, pack backup
 dm tools
 dm -t
 ```
+For tools that ask `Base path`, the default is the current working directory.
 
 Run a specific tool directly:
 ```bash
@@ -213,6 +220,30 @@ dm help
 dm help tools
 dm help plugin
 dm help pack <name>
+```
+
+Shell completion (PowerShell):
+```powershell
+dm completion powershell > $HOME\Documents\PowerShell\dm-completion.ps1
+```
+Then load it from your profile:
+```powershell
+. $HOME\Documents\PowerShell\dm-completion.ps1
+```
+
+Generate completion for other shells:
+```bash
+dm completion bash
+dm completion zsh
+dm completion fish
+```
+
+One-step install:
+```powershell
+dm completion install
+dm completion install --shell bash
+dm completion install --shell zsh
+dm completion install --shell fish
 ```
 
 Per pack:
@@ -253,6 +284,7 @@ dm plugin run <name> [args...]
 ```
 
 ## Changelog
+- Unreleased: Start incremental migration to Cobra for CLI parsing while keeping legacy behavior and adding completion install for powershell/bash/zsh/fish.
 - Unreleased: Add split config support via `include` and package refactor into `internal/`.
 - Unreleased: Add profiles, plugins, cache, validation, and add/list commands.
 - Unreleased: Add packs with per-pack knowledge.

@@ -19,8 +19,8 @@ type recentItem struct {
 	Size    int64
 }
 
-func RunRecent(baseDir string, r *bufio.Reader) int {
-	base := prompt(r, "Base path", "")
+func RunRecent(r *bufio.Reader) int {
+	base := prompt(r, "Base path", currentWorkingDir("."))
 	if strings.TrimSpace(base) == "" {
 		fmt.Println("Error: base path is required.")
 		return 1

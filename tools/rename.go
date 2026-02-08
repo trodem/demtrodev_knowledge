@@ -10,19 +10,19 @@ import (
 
 func RunRename(baseDir string, r *bufio.Reader) int {
 	opts := renamer.Options{
-		BasePath:  prompt(r, "Base path", baseDir),
-		NamePart:  prompt(r, "Name contains (optional)", ""),
-		From:      prompt(r, "Replace from", ""),
-		To:        prompt(r, "Replace to (empty = delete)", ""),
-		Recursive: true,
-		UseRegex:  false,
+		BasePath:      prompt(r, "Base path", currentWorkingDir(baseDir)),
+		NamePart:      prompt(r, "Name contains (optional)", ""),
+		From:          prompt(r, "Replace from", ""),
+		To:            prompt(r, "Replace to (empty = delete)", ""),
+		Recursive:     true,
+		UseRegex:      false,
 		CaseSensitive: strings.ToLower(strings.TrimSpace(prompt(r, "Case sensitive for replace? (y/N)", "N"))) == "y",
 	}
 
 	if strings.TrimSpace(opts.From) == "" {
 		fmt.Println("Error: replace-from is required.")
 		return 1
-	 }
+	}
 
 	plan, err := renamer.BuildPlan(opts)
 	if err != nil {

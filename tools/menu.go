@@ -38,17 +38,17 @@ func RunByName(baseDir, name string) int {
 func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
 	switch normalizeToolName(name) {
 	case "search":
-		return RunSearch(baseDir, reader)
+		return RunSearch(reader)
 	case "rename":
 		return RunRename(baseDir, reader)
 	case "note":
 		return RunQuickNote(baseDir, reader)
 	case "recent":
-		return RunRecent(baseDir, reader)
+		return RunRecent(reader)
 	case "backup":
 		return RunPackBackup(baseDir, reader)
 	case "clean":
-		return RunCleanEmpty(baseDir, reader)
+		return RunCleanEmpty(reader)
 	default:
 		fmt.Println("Tool non valido:", name)
 		fmt.Println("Usa: search|rename|note|recent|backup|clean")
@@ -92,4 +92,12 @@ func prompt(r *bufio.Reader, label, def string) string {
 func readLine(r *bufio.Reader) string {
 	s, _ := r.ReadString('\n')
 	return strings.TrimSpace(s)
+}
+
+func currentWorkingDir(fallback string) string {
+	wd, err := os.Getwd()
+	if err != nil || strings.TrimSpace(wd) == "" {
+		return fallback
+	}
+	return wd
 }

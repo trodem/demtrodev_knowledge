@@ -21,6 +21,8 @@ Comandi principali:
   dm tools                  strumenti (search/rename/note/recent/backup/clean)
   dm tools <tool>           avvia un tool diretto (es: search, s)
   dm -t [tool]              scorciatoia per tools
+  dm -k [cmd]               scorciatoia per pack
+  dm -g [cmd]               scorciatoia per plugin
 
 Gestione pack:
   dm pack new <name>        crea un nuovo pack
@@ -46,6 +48,9 @@ Help:
   dm help tools
   dm help plugin
   dm help pack <name>
+  dm completion powershell
+  dm completion bash|zsh|fish
+  dm completion install --shell <powershell|bash|zsh|fish>
 
 Flags:
   --profile <name>              usa un profilo specifico
@@ -61,6 +66,8 @@ Esempi rapidi:
   dm tools
   dm tools search
   dm -t s
+  dm -k list
+  dm -g list
 `)
 
 	fmt.Println("Suggerimento CD (senza modifiche shell):")
@@ -85,7 +92,7 @@ Menu:
 Search files:
 - Recursive search by name contains or extension.
 - Sort by name/date/size.
-- Base path is required.
+- Base path defaults to current working directory.
 
 Rename files:
 - Interactive batch rename with preview and confirmation.
@@ -98,13 +105,13 @@ Quick note:
 - If a pack is active, it is used as default.
 
 Recent files:
-- Show most recently modified files in a path.
+- Show most recently modified files in a path (default: current working directory).
 
 Pack backup:
 - Create a zip of packs/<pack> into backups/.
 
 Clean empty folders:
-- Find and remove empty folders in a path.
+- Find and remove empty folders in a path (default: current working directory).
 
 Examples:
   dm tools

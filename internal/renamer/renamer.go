@@ -1,7 +1,6 @@
 package renamer
 
 import (
-	"bufio"
 	"fmt"
 	"io/fs"
 	"os"
@@ -16,67 +15,13 @@ type PlanItem struct {
 }
 
 type Options struct {
-	BasePath  string
-	NamePart  string
-	From      string
-	To        string
-	Recursive bool
-	UseRegex  bool
+	BasePath      string
+	NamePart      string
+	From          string
+	To            string
+	Recursive     bool
+	UseRegex      bool
 	CaseSensitive bool
-}
-
-func RunInteractive(baseDir string) int {
-	reader := bufio.NewReader(os.Stdin)
-
-	basePath := prompt(reader, "Base path", baseDir)
-	if basePath == "" {
-		basePath = baseDir
-	}
-	namePart := prompt(reader, "Name contains (optional)", "")
-	from := prompt(reader, "Replace from", "")
-	to := prompt(reader, "Replace to (empty = delete)", "")
-
-	if strings.TrimSpace(from) == "" {
-		fmt.Println("Error: replace-from is required.")
-		return 1
-	}
-
-	plan, err := BuildPlan(Options{
-		BasePath:  basePath,
-		NamePart:  namePart,
-		From:      from,
-		To:        to,
-		Recursive: true,
-		UseRegex:  true,
-		CaseSensitive: false,
-	})
-	if err != nil {
-		fmt.Println("Error:", err)
-		return 1
-	}
-
-	if len(plan) == 0 {
-		fmt.Println("No files to rename.")
-		return 0
-	}
-
-	fmt.Println("\nPreview:")
-	for _, item := range plan {
-		fmt.Printf("%s -> %s\n", item.OldPath, item.NewPath)
-	}
-
-	confirm := prompt(reader, "Proceed? [y/N]", "N")
-	if strings.ToLower(strings.TrimSpace(confirm)) != "y" {
-		fmt.Println("Canceled.")
-		return 0
-	}
-
-	if err := ApplyPlan(plan); err != nil {
-		fmt.Println("Error:", err)
-		return 1
-	}
-	fmt.Println("Done.")
-	return 0
 }
 
 func BuildPlan(opts Options) ([]PlanItem, error) {
@@ -189,20 +134,6 @@ func ApplyPlan(plan []PlanItem) error {
 		}
 	}
 	return nil
-}
-
-func prompt(r *bufio.Reader, label, def string) string {
-	if def != "" {
-		fmt.Printf("%s [%s]: ", label, def)
-	} else {
-		fmt.Printf("%s: ", label)
-	}
-	text, _ := r.ReadString('\n')
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return def
-	}
-	return text
 }
 
 func dedupe(items []PlanItem) []PlanItem {

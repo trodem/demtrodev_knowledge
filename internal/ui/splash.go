@@ -39,6 +39,10 @@ func PrintSplash(d SplashData) {
 	fmt.Println("dm pack list")
 	fmt.Println("dm pack use <name>")
 	fmt.Println("dm tools")
+	fmt.Println("dm -t s")
+	fmt.Println("dm -k list")
+	fmt.Println("dm -g list")
+	fmt.Println("dm completion install")
 }
 
 //go:embed logo.txt

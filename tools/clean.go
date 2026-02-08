@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-func RunCleanEmpty(baseDir string, r *bufio.Reader) int {
-	base := prompt(r, "Base path", "")
+func RunCleanEmpty(r *bufio.Reader) int {
+	base := prompt(r, "Base path", currentWorkingDir("."))
 	if strings.TrimSpace(base) == "" {
 		fmt.Println("Error: base path is required.")
 		return 1

@@ -8,8 +8,8 @@ import (
 	"cli/internal/filesearch"
 )
 
-func RunSearch(baseDir string, r *bufio.Reader) int {
-	base := prompt(r, "Base path", "")
+func RunSearch(r *bufio.Reader) int {
+	base := prompt(r, "Base path", currentWorkingDir("."))
 	if strings.TrimSpace(base) == "" {
 		fmt.Println("Error: base path is required.")
 		return 1

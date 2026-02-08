@@ -31,3 +31,19 @@ func TestParseFlagsToolsShortcutWithAliasAndPack(t *testing.T) {
 		t.Fatalf("expected %v, got %v", want, out)
 	}
 }
+
+func TestParseFlagsPacksShortcut(t *testing.T) {
+	_, out := parseFlags([]string{"-k", "list"})
+	want := []string{"pack", "list"}
+	if !reflect.DeepEqual(out, want) {
+		t.Fatalf("expected %v, got %v", want, out)
+	}
+}
+
+func TestParseFlagsPluginsShortcut(t *testing.T) {
+	_, out := parseFlags([]string{"-g", "list"})
+	want := []string{"plugin", "list"}
+	if !reflect.DeepEqual(out, want) {
+		t.Fatalf("expected %v, got %v", want, out)
+	}
+}
