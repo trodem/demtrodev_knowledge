@@ -10,11 +10,11 @@ import (
 
 func InKnowledge(knowledgeDir, query string) {
 	if query == "" {
-		fmt.Println("Uso: dm find <query>")
+		fmt.Println("Usage: dm find <query>")
 		return
 	}
 	if knowledgeDir == "" {
-		fmt.Println("Knowledge path non configurato.")
+		fmt.Println("Knowledge path is not configured.")
 		return
 	}
 

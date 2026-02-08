@@ -1,4 +1,5 @@
 {
+    "schema_version":  1,
     "description":  "Docker commands and notes",
     "summary":  "Docker CLI and compose helpers",
     "tags":  [

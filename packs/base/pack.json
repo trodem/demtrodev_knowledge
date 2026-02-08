@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "description": "Base pack with shared defaults",
   "summary": "Shared defaults and minimal baseline pack",
   "tags": [

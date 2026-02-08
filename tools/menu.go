@@ -50,8 +50,8 @@ func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
 	case "clean":
 		return RunCleanEmpty(reader)
 	default:
-		fmt.Println("Tool non valido:", name)
-		fmt.Println("Usa: search|rename|note|recent|backup|clean")
+		fmt.Println("Invalid tool:", name)
+		fmt.Println("Use: search|rename|note|recent|backup|clean")
 		return 1
 	}
 }

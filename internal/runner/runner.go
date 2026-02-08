@@ -12,7 +12,7 @@ import (
 func RunAlias(cfg config.Config, name, workDir string) {
 	cmdStr, ok := cfg.Run[name]
 	if !ok {
-		fmt.Println("Alias run non trovato:", name)
+		fmt.Println("Run alias not found:", name)
 		return
 	}
 	ExecShell(cmdStr, workDir)
@@ -21,12 +21,12 @@ func RunAlias(cfg config.Config, name, workDir string) {
 func RunProjectCommand(cfg config.Config, project, action string, baseDir string) {
 	p, ok := cfg.Projects[project]
 	if !ok {
-		fmt.Println("Project non trovato:", project)
+		fmt.Println("Project not found:", project)
 		return
 	}
 	cmdStr, ok := p.Commands[action]
 	if !ok {
-		fmt.Printf("Action '%s' non trovata per project '%s'\n", action, project)
+		fmt.Printf("Action '%s' not found for project '%s'\n", action, project)
 		return
 	}
 	workDir := config.ResolvePath(baseDir, p.Path)

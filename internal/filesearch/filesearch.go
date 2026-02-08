@@ -69,7 +69,7 @@ func Find(opts Options) ([]Result, error) {
 
 func RenderList(results []Result) {
 	if len(results) == 0 {
-		fmt.Println("Nessun file trovato.")
+		fmt.Println("No files found.")
 		return
 	}
 	for _, r := range results {

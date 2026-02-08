@@ -58,6 +58,7 @@ Think of a pack as a box with 4 things:
 Example:
 ```json
 {
+  "schema_version": 1,
   "description": "Git workflows and notes",
   "summary": "Git aliases and project actions",
   "tags": ["git", "vcs"],
@@ -156,9 +157,13 @@ dm add jump <name> <path>
 dm --pack docker add jump <name> <path>
 dm pack new <name>
 dm pack new <name> --description "..."
+dm pack clone <src> <dst>
 dm pack edit <name> --summary "..." --tag dev --example "dm -p <name> find <query>"
 dm pack list
+dm pack list --verbose
 dm pack info <name>
+dm pack doctor <name>
+dm pack doctor <name> --json
 dm pack use <name>
 dm pack current
 dm pack unset

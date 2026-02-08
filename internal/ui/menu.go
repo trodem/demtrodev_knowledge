@@ -24,14 +24,14 @@ func ShowMenu(cfg config.Config, name, targetPath, baseDir string) {
 	fmt.Printf("Target: %s\n", name)
 	fmt.Printf("Path:   %s\n\n", targetPath)
 
-	// menu base
-	fmt.Println("Scegli azione:")
+	// base menu
+	fmt.Println("Choose an action:")
 	fmt.Println("  1) Print path (per cd $(dm ...))")
 	fmt.Println("  2) Open Explorer/Finder")
 	fmt.Println("  3) Open VS Code (code .)")
 	fmt.Println("  4) Open new terminal here")
 
-	// se progetto: lista azioni
+	// if project: list actions
 	actionKeys := []string{}
 	if isProject && len(proj.Commands) > 0 {
 		actionKeys = sortedKeys(proj.Commands)
@@ -57,10 +57,10 @@ func ShowMenu(cfg config.Config, name, targetPath, baseDir string) {
 		return
 	case "5":
 		if len(actionKeys) == 0 {
-			fmt.Println("Nessuna action definita per questo progetto.")
+			fmt.Println("No actions defined for this project.")
 			return
 		}
-		fmt.Println("\nAzioni disponibili:")
+		fmt.Println("\nAvailable actions:")
 		for i, a := range actionKeys {
 			fmt.Printf("  %d) %s\n", i+1, a)
 		}
@@ -68,13 +68,13 @@ func ShowMenu(cfg config.Config, name, targetPath, baseDir string) {
 		sel := readLine()
 		idx := parseIndex(sel)
 		if idx < 1 || idx > len(actionKeys) {
-			fmt.Println("Scelta non valida.")
+			fmt.Println("Invalid selection.")
 			return
 		}
 		runner.RunProjectCommand(cfg, name, actionKeys[idx-1], baseDir)
 		return
 	default:
-		fmt.Println("Scelta non valida.")
+		fmt.Println("Invalid selection.")
 		return
 	}
 }

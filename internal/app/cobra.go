@@ -41,6 +41,7 @@ func Run(args []string) int {
 	root.PersistentFlags().BoolP("packs", "k", false, "shortcut for 'pack' command")
 	root.PersistentFlags().BoolP("plugins", "g", false, "shortcut for 'plugin' command")
 	root.CompletionOptions.DisableDefaultCmd = true
+	_ = root.RegisterFlagCompletionFunc("pack", completePackNames)
 
 	addCobraSubcommands(root, &opts)
 	addCompletionCommands(root)
@@ -57,14 +58,14 @@ func Run(args []string) int {
 		if strings.HasPrefix(msg, "unknown command") {
 			rt, loadErr := loadRuntime(opts)
 			if loadErr != nil {
-				fmt.Println("Errore:", loadErr)
+				fmt.Println("Error:", loadErr)
 				return 1
 			}
 			_, rest := parseFlags(rewriteGroupShortcuts(args))
 			return runTargetOrSearch(rt.BaseDir, rt.Config, rest)
 		}
 		if msg != "" {
-			fmt.Println("Errore:", msg)
+			fmt.Println("Error:", msg)
 		}
 		return 1
 	}

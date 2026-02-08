@@ -1,8 +1,11 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"cli/internal/config"
@@ -189,23 +192,87 @@ func newPackCommand(opts *flags) *cobra.Command {
 					return err
 				}
 			}
-			fmt.Println("OK: pack creato")
+			fmt.Println("OK: pack created")
 			return nil
 		},
 	}
 	newPackCmd.Flags().StringVar(&newPackDescription, "description", "", "description for the pack")
 	packCmd.AddCommand(newPackCmd)
 	packCmd.AddCommand(&cobra.Command{
+		Use:   "clone <src> <dst>",
+		Short: "Clone an existing pack as a template",
+		Long:  "Copy packs/<src> to packs/<dst> and adapt default metadata to destination name.",
+		Example: "dm pack clone git git-work\n" +
+			"dm pack clone vim vim-alt",
+		Args: cobra.ExactArgs(2),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				return completePackNames(cmd, args, toComplete)
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rt, err := loadRuntime(*opts)
+			if err != nil {
+				return err
+			}
+			if err := store.ClonePack(rt.BaseDir, args[0], args[1]); err != nil {
+				return err
+			}
+			fmt.Printf("OK: pack cloned %s -> %s\n", args[0], args[1])
+			return nil
+		},
+	})
+	var verboseList bool
+	listCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List available packs",
 		Long:  "Show all packs that contain packs/<name>/pack.json.",
 		Example: "dm pack list\n" +
 			"dm -k list",
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+	}
+	listCmd.Flags().BoolVarP(&verboseList, "verbose", "v", false, "show pack metadata")
+	listCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		rt, err := loadRuntime(*opts)
+		if err != nil {
+			return err
+		}
+		if !verboseList {
 			return runPackArgs("list")
-		},
-	})
+		}
+		names, err := store.ListPacks(rt.BaseDir)
+		if err != nil {
+			return err
+		}
+		if len(names) == 0 {
+			fmt.Println("No packs found.")
+			return nil
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			info, err := store.GetPackInfo(rt.BaseDir, name)
+			if err != nil {
+				fmt.Printf("%s | error: %v\n", name, err)
+				continue
+			}
+			summary := strings.TrimSpace(info.Summary)
+			if summary == "" {
+				summary = strings.TrimSpace(info.Description)
+			}
+			owner := strings.TrimSpace(info.Owner)
+			if owner == "" {
+				owner = "-"
+			}
+			tags := "-"
+			if len(info.Tags) > 0 {
+				tags = strings.Join(info.Tags, ",")
+			}
+			fmt.Printf("%s | %s | owner:%s | tags:%s\n", name, summary, owner, tags)
+		}
+		return nil
+	}
+	packCmd.AddCommand(listCmd)
 	var (
 		editDescription string
 		editSummary     string
@@ -223,7 +290,8 @@ func newPackCommand(opts *flags) *cobra.Command {
 		Example: "dm pack edit git --description \"Git workflows\"\n" +
 			"dm pack edit git --summary \"Git notes\" --owner demtro --tag vcs --tag git\n" +
 			"dm pack edit git --example \"dm -p git find rebase\" --replace-examples",
-		Args: cobra.ExactArgs(1),
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completePackNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rt, err := loadRuntime(*opts)
 			if err != nil {
@@ -265,12 +333,12 @@ func newPackCommand(opts *flags) *cobra.Command {
 				changed = true
 			}
 			if !changed {
-				return fmt.Errorf("nessuna modifica: usa almeno un flag metadata")
+				return fmt.Errorf("no changes: use at least one metadata flag")
 			}
 			if err := store.SavePackFile(path, pf); err != nil {
 				return err
 			}
-			fmt.Println("OK: pack metadata aggiornata")
+			fmt.Println("OK: pack metadata updated")
 			return nil
 		},
 	}
@@ -289,8 +357,9 @@ func newPackCommand(opts *flags) *cobra.Command {
 			"- path\n" +
 			"- knowledge path\n" +
 			"- jumps/runs/projects/actions",
-		Example: "dm pack info git",
-		Args:    cobra.ExactArgs(1),
+		Example:           "dm pack info git",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completePackNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPackArgs("info", args[0])
 		},
@@ -302,7 +371,8 @@ func newPackCommand(opts *flags) *cobra.Command {
 			"Stored in .dm.active-pack next to the executable.",
 		Example: "dm pack use git\n" +
 			"dm -k use vim",
-		Args: cobra.ExactArgs(1),
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completePackNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPackArgs("use", args[0])
 		},
@@ -317,6 +387,65 @@ func newPackCommand(opts *flags) *cobra.Command {
 			return runPackArgs("current")
 		},
 	})
+	doctorCmd := &cobra.Command{
+		Use:               "doctor <name>",
+		Short:             "Check pack metadata and structure",
+		Long:              "Validate pack metadata completeness and core paths for a single pack.",
+		Example:           "dm pack doctor git\ndm pack doctor git --json",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completePackNames,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rt, err := loadRuntime(*opts)
+			if err != nil {
+				return err
+			}
+			jsonOut, _ := cmd.Flags().GetBool("json")
+			name := args[0]
+			path := filepath.Join(rt.BaseDir, "packs", name, "pack.json")
+			pf, err := store.LoadPackFile(path)
+			if err != nil {
+				return err
+			}
+			knowledgeRel := strings.TrimSpace(pf.Search.Knowledge)
+			knowledgeAbs := config.ResolvePath(rt.BaseDir, knowledgeRel)
+			knowledgeExists := false
+			if knowledgeRel != "" {
+				if st, err := os.Stat(knowledgeAbs); err == nil && st.IsDir() {
+					knowledgeExists = true
+				}
+			}
+			issues := packDoctorIssues(pf, knowledgeRel, knowledgeAbs, knowledgeExists)
+			if jsonOut {
+				res := packDoctorResult{
+					Name:          name,
+					OK:            len(issues) == 0,
+					Issues:        issues,
+					Knowledge:     knowledgeRel,
+					KnowledgePath: knowledgeAbs,
+				}
+				data, err := json.MarshalIndent(res, "", "  ")
+				if err != nil {
+					return err
+				}
+				fmt.Println(string(data))
+				if len(issues) == 0 {
+					return nil
+				}
+				return exitCodeError{code: 1}
+			}
+			if len(issues) == 0 {
+				fmt.Printf("OK: pack '%s' looks good\n", name)
+				return nil
+			}
+			fmt.Printf("pack '%s' issues:\n", name)
+			for _, issue := range issues {
+				fmt.Printf("- %s\n", issue)
+			}
+			return exitCodeError{code: 1}
+		},
+	}
+	doctorCmd.Flags().Bool("json", false, "output result as JSON")
+	packCmd.AddCommand(doctorCmd)
 	packCmd.AddCommand(&cobra.Command{
 		Use:     "unset",
 		Short:   "Unset active pack",
@@ -333,7 +462,7 @@ func newPackCommand(opts *flags) *cobra.Command {
 }
 
 func addDynamicPackProfileCommands(packCmd *cobra.Command, runPackArgs func(args ...string) error) {
-	baseDir, err := exeDir()
+	baseDir, err := resolvePackBaseDir()
 	if err != nil {
 		return
 	}
@@ -405,6 +534,25 @@ func addDynamicPackProfileCommands(packCmd *cobra.Command, runPackArgs func(args
 			},
 		})
 	}
+}
+
+func resolvePackBaseDir() (string, error) {
+	exeBase, exeErr := exeDir()
+	if exeErr == nil {
+		if packs, err := store.ListPacks(exeBase); err == nil && len(packs) > 0 {
+			return exeBase, nil
+		}
+	}
+	wd, wdErr := os.Getwd()
+	if wdErr == nil {
+		if packs, err := store.ListPacks(wd); err == nil && len(packs) > 0 {
+			return wd, nil
+		}
+	}
+	if exeErr == nil {
+		return exeBase, nil
+	}
+	return "", exeErr
 }
 
 func newPluginCommand(opts *flags) *cobra.Command {
@@ -555,7 +703,7 @@ func newToolsCommand(opts *flags) *cobra.Command {
 
 func runFindCommand(opts flags, args []string) error {
 	if len(args) < 1 {
-		fmt.Println("Uso: dm find <query>")
+		fmt.Println("Usage: dm find <query>")
 		return nil
 	}
 	rt, err := loadRuntime(opts)
@@ -582,4 +730,56 @@ func uniqueNonEmpty(items []string) []string {
 		out = append(out, v)
 	}
 	return out
+}
+
+func completePackNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	baseDir, err := resolvePackBaseDir()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	names, err := store.ListPacks(baseDir)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	out := make([]string, 0, len(names))
+	prefix := strings.ToLower(strings.TrimSpace(toComplete))
+	for _, n := range names {
+		if prefix == "" || strings.HasPrefix(strings.ToLower(n), prefix) {
+			out = append(out, n)
+		}
+	}
+	return out, cobra.ShellCompDirectiveNoFileComp
+}
+
+type packDoctorResult struct {
+	Name          string   `json:"name"`
+	OK            bool     `json:"ok"`
+	Issues        []string `json:"issues"`
+	Knowledge     string   `json:"knowledge"`
+	KnowledgePath string   `json:"knowledge_path"`
+}
+
+func packDoctorIssues(pf store.PackFile, knowledgeRel, knowledgeAbs string, knowledgeExists bool) []string {
+	var issues []string
+	if pf.SchemaVersion != 1 {
+		issues = append(issues, fmt.Sprintf("schema_version %d is not supported (expected 1)", pf.SchemaVersion))
+	}
+	if strings.TrimSpace(pf.Description) == "" {
+		issues = append(issues, "description is empty")
+	}
+	if strings.TrimSpace(pf.Summary) == "" {
+		issues = append(issues, "summary is empty")
+	}
+	if len(pf.Examples) == 0 {
+		issues = append(issues, "examples is empty")
+	}
+	if strings.TrimSpace(knowledgeRel) == "" {
+		issues = append(issues, "search.knowledge is empty")
+	} else if !knowledgeExists {
+		issues = append(issues, fmt.Sprintf("knowledge path not found: %s", knowledgeAbs))
+	}
+	if len(pf.Jump) == 0 && len(pf.Run) == 0 && len(pf.Projects) == 0 {
+		issues = append(issues, "pack has no jump/run/projects entries")
+	}
+	return issues
 }

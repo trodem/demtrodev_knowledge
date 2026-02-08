@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "description": "Git workflows, aliases, and troubleshooting notes",
   "summary": "Git aliases and project actions",
   "tags": [

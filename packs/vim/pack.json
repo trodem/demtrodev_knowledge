@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "description": "Vim and Neovim commands and knowledge",
   "summary": "Vim/Neovim command shortcuts and notes",
   "tags": [

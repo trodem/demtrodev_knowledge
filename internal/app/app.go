@@ -19,7 +19,7 @@ func runLegacy(args []string) int {
 	opts, rest := parseFlags(args)
 	rt, err := loadRuntime(opts)
 	if err != nil {
-		fmt.Println("Errore:", err)
+		fmt.Println("Error:", err)
 		return 1
 	}
 	baseDir := rt.BaseDir
@@ -42,7 +42,7 @@ func runLegacy(args []string) int {
 
 	args = rest
 
-	// comandi globali
+	// global commands
 	switch args[0] {
 	case "aliases", "config":
 		ui.PrintAliases(cfg)
@@ -64,7 +64,7 @@ func runLegacy(args []string) int {
 		return tools.RunByName(baseDir, args[1])
 	case "find", "search":
 		if len(args) < 2 {
-			fmt.Println("Uso: dm find <query>")
+			fmt.Println("Usage: dm find <query>")
 			return 0
 		}
 		knowledgeDir := config.ResolvePath(baseDir, cfg.Search.Knowledge)
@@ -73,7 +73,7 @@ func runLegacy(args []string) int {
 		return 0
 	case "run":
 		if len(args) < 2 {
-			fmt.Println("Uso: dm run <alias>")
+			fmt.Println("Usage: dm run <alias>")
 			return 0
 		}
 		name := args[1]
@@ -100,12 +100,12 @@ func runTargetOrSearch(baseDir string, cfg config.Config, args []string) int {
 	// INTERACTIVE TARGET: dm <name>
 	name := args[0]
 
-	// target puo' essere jump o project
+	// target can be jump or project
 	targetPath, isJump := cfg.Jump[name]
 	_, isProject := cfg.Projects[name]
 
 	if !isJump && !isProject {
-		// fallback: come query di ricerca
+		// fallback: run as search query
 		knowledgeDir := config.ResolvePath(baseDir, cfg.Search.Knowledge)
 		search.InKnowledge(knowledgeDir, strings.Join(args, " "))
 		return 0
@@ -143,7 +143,7 @@ type runtimeContext struct {
 func loadRuntime(opts flags) (runtimeContext, error) {
 	baseDir, err := exeDir()
 	if err != nil {
-		return runtimeContext{}, fmt.Errorf("non riesco a determinare la cartella dell'eseguibile: %w", err)
+		return runtimeContext{}, fmt.Errorf("cannot determine executable directory: %w", err)
 	}
 	cfgPath := filepath.Join(baseDir, "dm.json")
 	if opts.Pack == "" {
@@ -157,7 +157,7 @@ func loadRuntime(opts flags) (runtimeContext, error) {
 		Pack:     opts.Pack,
 	})
 	if err != nil {
-		return runtimeContext{}, fmt.Errorf("caricando config: %w", err)
+		return runtimeContext{}, fmt.Errorf("loading config: %w", err)
 	}
 	return runtimeContext{
 		BaseDir: baseDir,
@@ -220,7 +220,7 @@ func runValidate(baseDir string, cfg config.Config) int {
 	issues := config.Validate(cfg)
 	issues = append(issues, validatePackMetadata(baseDir)...)
 	if len(issues) == 0 {
-		fmt.Println("OK: configurazione valida")
+		fmt.Println("OK: valid configuration")
 		return 0
 	}
 	for _, issue := range issues {
@@ -251,6 +251,12 @@ func validatePackMetadata(baseDir string) []config.Issue {
 				Message: fmt.Sprintf("pack '%s': description is empty", name),
 			})
 		}
+		if pf.SchemaVersion != 1 {
+			issues = append(issues, config.Issue{
+				Level:   "warn",
+				Message: fmt.Sprintf("pack '%s': schema_version %d is not supported (expected 1)", name, pf.SchemaVersion),
+			})
+		}
 		if len(pf.Examples) == 0 {
 			issues = append(issues, config.Issue{
 				Level:   "warn",
@@ -263,7 +269,7 @@ func validatePackMetadata(baseDir string) []config.Issue {
 
 func runList(cfg config.Config, args []string) int {
 	if len(args) == 0 {
-		fmt.Println("Uso: dm list <jumps|runs|projects|actions>")
+		fmt.Println("Usage: dm list <jumps|runs|projects|actions>")
 		return 0
 	}
 	switch args[0] {
@@ -275,77 +281,77 @@ func runList(cfg config.Config, args []string) int {
 		ui.PrintProjects(cfg.Projects)
 	case "actions":
 		if len(args) < 2 {
-			fmt.Println("Uso: dm list actions <project>")
+			fmt.Println("Usage: dm list actions <project>")
 			return 0
 		}
 		p, ok := cfg.Projects[args[1]]
 		if !ok {
-			fmt.Println("Project non trovato:", args[1])
+			fmt.Println("Project not found:", args[1])
 			return 0
 		}
 		ui.PrintMap(p.Commands)
 	default:
-		fmt.Println("Uso: dm list <jumps|runs|projects|actions>")
+		fmt.Println("Usage: dm list <jumps|runs|projects|actions>")
 	}
 	return 0
 }
 
 func runAdd(baseDir string, opts flags, args []string) int {
 	if len(args) < 1 {
-		fmt.Println("Uso: dm add <jump|run|project|action> ...")
+		fmt.Println("Usage: dm add <jump|run|project|action> ...")
 		return 0
 	}
 	pack := opts.Pack
 	if pack == "" {
-		fmt.Println("Errore: nessun pack attivo. Usa -p <pack> o dm pack use <name>.")
+		fmt.Println("Error: no active pack. Use -p <pack> or dm pack use <name>.")
 		return 1
 	}
 	switch args[0] {
 	case "jump":
 		if len(args) < 3 {
-			fmt.Println("Uso: dm add jump <name> <path>")
+			fmt.Println("Usage: dm add jump <name> <path>")
 			return 0
 		}
 		path := filepath.Join(baseDir, "packs", pack, "pack.json")
 		pf, err := store.LoadPackFile(path)
 		if err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
 		pf.Jump[args[1]] = args[2]
 		if err := store.SavePackFile(path, pf); err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
-		fmt.Println("OK: jump aggiunto")
+		fmt.Println("OK: jump added")
 		return 0
 	case "run":
 		if len(args) < 3 {
-			fmt.Println("Uso: dm add run <name> <command>")
+			fmt.Println("Usage: dm add run <name> <command>")
 			return 0
 		}
 		path := filepath.Join(baseDir, "packs", pack, "pack.json")
 		pf, err := store.LoadPackFile(path)
 		if err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
 		pf.Run[args[1]] = strings.Join(args[2:], " ")
 		if err := store.SavePackFile(path, pf); err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
-		fmt.Println("OK: run aggiunto")
+		fmt.Println("OK: run added")
 		return 0
 	case "project":
 		if len(args) < 3 {
-			fmt.Println("Uso: dm add project <name> <path>")
+			fmt.Println("Usage: dm add project <name> <path>")
 			return 0
 		}
 		path := filepath.Join(baseDir, "packs", pack, "pack.json")
 		pf, err := store.LoadPackFile(path)
 		if err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
 		if pf.Projects == nil {
@@ -356,14 +362,14 @@ func runAdd(baseDir string, opts flags, args []string) int {
 			Commands: map[string]string{},
 		}
 		if err := store.SavePackFile(path, pf); err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
-		fmt.Println("OK: project aggiunto")
+		fmt.Println("OK: project added")
 		return 0
 	case "action":
 		if len(args) < 4 {
-			fmt.Println("Uso: dm add action <project> <name> <command>")
+			fmt.Println("Usage: dm add action <project> <name> <command>")
 			return 0
 		}
 		project := args[1]
@@ -373,12 +379,12 @@ func runAdd(baseDir string, opts flags, args []string) int {
 		path := filepath.Join(baseDir, "packs", pack, "pack.json")
 		pf, err := store.LoadPackFile(path)
 		if err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
 		p, ok := pf.Projects[project]
 		if !ok {
-			fmt.Println("Project non trovato. Aggiungi prima il project.")
+			fmt.Println("Project not found. Add the project first.")
 			return 1
 		}
 		if p.Commands == nil {
@@ -387,31 +393,31 @@ func runAdd(baseDir string, opts flags, args []string) int {
 		p.Commands[action] = cmd
 		pf.Projects[project] = p
 		if err := store.SavePackFile(path, pf); err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
-		fmt.Println("OK: action aggiunta")
+		fmt.Println("OK: action added")
 		return 0
 	default:
-		fmt.Println("Uso: dm add <jump|run|project|action> ...")
+		fmt.Println("Usage: dm add <jump|run|project|action> ...")
 		return 0
 	}
 }
 
 func runPlugin(baseDir string, args []string) int {
 	if len(args) == 0 {
-		fmt.Println("Uso: dm plugin <list|run> ...")
+		fmt.Println("Usage: dm plugin <list|run> ...")
 		return 0
 	}
 	switch args[0] {
 	case "list":
 		items, err := plugins.List(baseDir)
 		if err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
 		if len(items) == 0 {
-			fmt.Println("Nessun plugin trovato.")
+			fmt.Println("No plugins found.")
 			return 0
 		}
 		for _, p := range items {
@@ -420,46 +426,57 @@ func runPlugin(baseDir string, args []string) int {
 		return 0
 	case "run":
 		if len(args) < 2 {
-			fmt.Println("Uso: dm plugin run <name> [args...]")
+			fmt.Println("Usage: dm plugin run <name> [args...]")
 			return 0
 		}
 		if err := plugins.Run(baseDir, args[1], args[2:]); err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
 		return 0
 	default:
-		fmt.Println("Uso: dm plugin <list|run> ...")
+		fmt.Println("Usage: dm plugin <list|run> ...")
 		return 0
 	}
 }
 
 func runPack(baseDir string, args []string) int {
 	if len(args) < 1 {
-		fmt.Println("Uso: dm pack <new|list|info|use|current|unset> [name]")
+		fmt.Println("Usage: dm pack <new|clone|list|info|use|current|unset> [name]")
 		return 0
 	}
 	switch args[0] {
 	case "new":
 		if len(args) < 2 {
-			fmt.Println("Uso: dm pack new <name>")
+			fmt.Println("Usage: dm pack new <name>")
 			return 0
 		}
 		name := args[1]
 		if err := store.CreatePack(baseDir, name); err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
-		fmt.Println("OK: pack creato")
+		fmt.Println("OK: pack created")
+		return 0
+	case "clone":
+		if len(args) < 3 {
+			fmt.Println("Usage: dm pack clone <src> <dst>")
+			return 0
+		}
+		if err := store.ClonePack(baseDir, args[1], args[2]); err != nil {
+			fmt.Println("Error:", err)
+			return 1
+		}
+		fmt.Printf("OK: pack cloned %s -> %s\n", args[1], args[2])
 		return 0
 	case "list":
 		items, err := store.ListPacks(baseDir)
 		if err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
 		if len(items) == 0 {
-			fmt.Println("Nessun pack trovato.")
+			fmt.Println("No packs found.")
 			return 0
 		}
 		for _, name := range items {
@@ -468,12 +485,12 @@ func runPack(baseDir string, args []string) int {
 		return 0
 	case "info":
 		if len(args) < 2 {
-			fmt.Println("Uso: dm pack info <name>")
+			fmt.Println("Usage: dm pack info <name>")
 			return 0
 		}
 		info, err := store.GetPackInfo(baseDir, args[1])
 		if err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
 		fmt.Printf("pack: %s\n", info.Name)
@@ -506,41 +523,41 @@ func runPack(baseDir string, args []string) int {
 		return 0
 	case "use":
 		if len(args) < 2 {
-			fmt.Println("Uso: dm pack use <name>")
+			fmt.Println("Usage: dm pack use <name>")
 			return 0
 		}
 		name := args[1]
 		if !store.PackExists(baseDir, name) {
-			fmt.Println("Pack non trovato:", name)
+			fmt.Println("Pack not found:", name)
 			return 1
 		}
 		if err := store.SetActivePack(baseDir, name); err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
-		fmt.Println("OK: pack attivo ->", name)
+		fmt.Println("OK: active pack ->", name)
 		return 0
 	case "current":
 		name, err := store.GetActivePack(baseDir)
 		if err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
 		if name == "" {
-			fmt.Println("Nessun pack attivo.")
+			fmt.Println("No active pack.")
 			return 0
 		}
 		fmt.Println(name)
 		return 0
 	case "unset":
 		if err := store.ClearActivePack(baseDir); err != nil {
-			fmt.Println("Errore:", err)
+			fmt.Println("Error:", err)
 			return 1
 		}
-		fmt.Println("OK: pack attivo rimosso")
+		fmt.Println("OK: active pack cleared")
 		return 0
 	default:
-		fmt.Println("Uso: dm pack <new|list|info|use|current|unset> [name]")
+		fmt.Println("Usage: dm pack <new|clone|list|info|use|current|unset> [name]")
 		return 0
 	}
 }
