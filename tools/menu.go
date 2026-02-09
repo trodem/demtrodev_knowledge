@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"cli/internal/ui"
@@ -187,4 +188,27 @@ func currentWorkingDir(fallback string) string {
 		return fallback
 	}
 	return wd
+}
+
+func normalizeInputPath(raw, fallback string) string {
+	p := strings.TrimSpace(raw)
+	p = strings.Trim(p, `"'`)
+	if p == "" {
+		p = fallback
+	}
+	if strings.TrimSpace(p) == "" {
+		p = "."
+	}
+	return filepath.Clean(p)
+}
+
+func validateExistingDir(path, label string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("%s not found: %s", label, path)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory: %s", label, path)
+	}
+	return nil
 }

@@ -23,6 +23,18 @@ func OpenVSCode(path string) {
 	_ = exec.Command("code", path).Start()
 }
 
+func OpenFile(path string) {
+	if runtime.GOOS == "windows" {
+		_ = exec.Command("cmd", "/C", "start", "", path).Start()
+		return
+	}
+	if runtime.GOOS == "darwin" {
+		_ = exec.Command("open", path).Start()
+		return
+	}
+	_ = exec.Command("xdg-open", path).Start()
+}
+
 func OpenTerminal(path string) {
 	// apre un nuovo terminale nella dir, senza toccare profili/alias
 	if runtime.GOOS == "windows" {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cli/internal/filesearch"
+	"cli/internal/ui"
 )
 
 type recentItem struct {
@@ -21,8 +22,14 @@ type recentItem struct {
 
 func RunRecent(r *bufio.Reader) int {
 	base := prompt(r, "Base path", currentWorkingDir("."))
+	base = normalizeInputPath(base, currentWorkingDir("."))
 	if strings.TrimSpace(base) == "" {
 		fmt.Println("Error: base path is required.")
+		return 1
+	}
+	if err := validateExistingDir(base, "base path"); err != nil {
+		fmt.Println(ui.Error("Error:"), err)
+		fmt.Println(ui.Muted("Hint: use '.' for current dir or '..' for parent dir."))
 		return 1
 	}
 	limitStr := prompt(r, "Limit", "20")

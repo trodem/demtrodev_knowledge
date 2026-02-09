@@ -10,8 +10,14 @@ import (
 )
 
 func RunRename(baseDir string, r *bufio.Reader) int {
+	cleanBase := normalizeInputPath(prompt(r, "Base path", currentWorkingDir(baseDir)), currentWorkingDir(baseDir))
+	if err := validateExistingDir(cleanBase, "base path"); err != nil {
+		fmt.Println(ui.Error("Error:"), err)
+		fmt.Println(ui.Muted("Hint: use '.' for current dir or '..' for parent dir."))
+		return 1
+	}
 	opts := renamer.Options{
-		BasePath:      prompt(r, "Base path", currentWorkingDir(baseDir)),
+		BasePath:      cleanBase,
 		NamePart:      prompt(r, "Name contains (optional)", ""),
 		From:          prompt(r, "Replace from", ""),
 		To:            prompt(r, "Replace to (empty = delete)", ""),
