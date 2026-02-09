@@ -13,26 +13,22 @@ var fnLine = regexp.MustCompile(`(?i)^\s*function\s+([a-z0-9_-]+)\b`)
 
 func main() {
 	pluginsDir := "plugins"
-	files, err := os.ReadDir(pluginsDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error reading plugins directory:", err)
-		os.Exit(1)
-	}
-
 	var problems []string
-	for _, e := range files {
-		if e.IsDir() {
-			continue
+	err := filepath.WalkDir(pluginsDir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
 		}
-		ext := strings.ToLower(filepath.Ext(e.Name()))
+		if d.IsDir() {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(d.Name()))
 		if ext != ".ps1" && ext != ".psm1" && ext != ".txt" {
-			continue
+			return nil
 		}
-		path := filepath.Join(pluginsDir, e.Name())
 		lines, err := readLines(path)
 		if err != nil {
 			problems = append(problems, fmt.Sprintf("%s: %v", path, err))
-			continue
+			return nil
 		}
 		for i, line := range lines {
 			if !fnLine.MatchString(line) {
@@ -46,6 +42,11 @@ func main() {
 				problems = append(problems, fmt.Sprintf("%s:%d: missing comment-based help block before function", path, i+1))
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error reading plugins directory:", err)
+		os.Exit(1)
 	}
 
 	if len(problems) > 0 {

@@ -254,23 +254,25 @@ func collectPowerShellFunctions(pluginsDir string) (map[string]string, []string,
 }
 
 func listPowerShellFunctionFiles(dir string) ([]string, error) {
-	entries, err := os.ReadDir(dir)
+	var files []string
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if !isPowerShellFunctionSource(d.Name()) {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
 		return nil, err
-	}
-	var files []string
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if !isPowerShellFunctionSource(name) {
-			continue
-		}
-		files = append(files, filepath.Join(dir, name))
 	}
 	sort.Slice(files, func(i, j int) bool {
 		si := functionSourceScore(files[i])
@@ -324,6 +326,9 @@ func readPowerShellFunctionNames(path string) ([]string, error) {
 		if name == "" {
 			continue
 		}
+		if !isPublicFunctionName(name) {
+			continue
+		}
 		if _, ok := seen[name]; ok {
 			continue
 		}
@@ -334,6 +339,10 @@ func readPowerShellFunctionNames(path string) ([]string, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+func isPublicFunctionName(name string) bool {
+	return !strings.HasPrefix(name, "_")
 }
 
 type functionHelp struct {

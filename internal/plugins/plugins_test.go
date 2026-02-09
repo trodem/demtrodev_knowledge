@@ -49,7 +49,7 @@ func TestListDeduplicatesByPluginName(t *testing.T) {
 
 func TestReadPowerShellFunctionNames(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "profile.txt")
-	content := "function stibs_restart_backend { }\nfunction test_one { }\n# function ignored\nfunction stibs_restart_backend { }\n"
+	content := "function stibs_restart_backend { }\nfunction _internal_helper { }\nfunction test_one { }\n# function ignored\nfunction stibs_restart_backend { }\n"
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -71,16 +71,23 @@ func TestCollectPowerShellFunctionsFromMultipleFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "b_profile.txt"), []byte("function two { }\nfunction shared { }\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	sub := filepath.Join(dir, "functions")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, "c_profile.ps1"), []byte("function three { }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	catalog, files, err := collectPowerShellFunctions(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 2 {
-		t.Fatalf("expected 2 source files, got %d", len(files))
+	if len(files) != 3 {
+		t.Fatalf("expected 3 source files, got %d", len(files))
 	}
-	if catalog["one"] == "" || catalog["two"] == "" {
-		t.Fatalf("expected one and two in catalog, got %v", catalog)
+	if catalog["one"] == "" || catalog["two"] == "" || catalog["three"] == "" {
+		t.Fatalf("expected one/two/three in catalog, got %v", catalog)
 	}
 	// first file wins on duplicate names
 	if filepath.Base(catalog["shared"]) != "a_profile.ps1" {

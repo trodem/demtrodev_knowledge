@@ -16,6 +16,9 @@ Repository guidelines for automated agents.
   - `dm.json` (optional root includes)
   - `packs/*/pack.json`
   - `packs/*/knowledge/`
+- Plugin files:
+  - `plugins/variables.ps1` (shared variables + private helper functions)
+  - `plugins/functions/*.ps1` (public command functions)
 
 ## Code Style
 - Keep ASCII-only in source files unless necessary.
@@ -46,6 +49,26 @@ Repository guidelines for automated agents.
   - `dm -t <name>`
 - Keep tool aliases consistent (`search/s`, `rename/r`, `note/n`, `recent/rec`, `backup/b`, `clean/c`).
 - For tools that request `Base path`, default to current working directory.
+
+## PowerShell Plugin Conventions
+- Store public PowerShell plugin commands in `plugins/functions/*.ps1`.
+- Keep shared variables and helper utilities in `plugins/variables.ps1`.
+- Use `Set-StrictMode -Version Latest` and `$ErrorActionPreference = "Stop"` in plugin `.ps1` files.
+- Public plugin function names must be explicit and domain-prefixed (for example `g_*`, `stibs_*`).
+- Private helper functions must start with `_` so they are not exposed as CLI commands.
+- Every public function must include comment-based help block immediately above the function:
+  - `SYNOPSIS`
+  - `DESCRIPTION`
+  - at least one `EXAMPLE`
+  - add `PARAMETER` entries when parameters exist
+- Prefer safety defaults for destructive actions:
+  - require explicit switch/confirmation for high-risk operations
+  - do not add wrappers for destructive Git commands like `reset --hard` unless explicitly requested
+- Use guard helpers (for example command/path checks) before calling external tools.
+- Regenerate docs when Git plugin functions change:
+  - `go run ./scripts/gen_git_cheatsheet`
+- Validate plugin help blocks before finalizing changes:
+  - `go run ./scripts/check_plugin_help.go`
 
 ## Build And Lint
 - Prefer `go test ./...` before changes are finalized.

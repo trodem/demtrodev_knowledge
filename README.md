@@ -300,6 +300,9 @@ dm completion install --shell fish
 Place scripts in `plugins/`:
 - Windows: `.ps1`, `.cmd`, `.bat`, `.exe`
 - Linux/mac: `.sh` (or executable files)
+Recommended layout:
+- `plugins/variables.ps1`
+- `plugins/functions/*.ps1`
 
 Run:
 ```bash
@@ -315,8 +318,10 @@ For cross-shell use, provide both plugin variants when needed:
 - `plugins/<name>.sh` for Bash/sh
 
 PowerShell profile function bridge:
-- `dm <function_name>` can invoke functions declared in PowerShell source files under `plugins/` (`.ps1`, `.psm1`, `.txt`).
+- `dm <function_name>` can invoke functions declared in PowerShell source files under `plugins/` (recursive: `.ps1`, `.psm1`, `.txt`).
 - `dm help <function_name>` shows detailed info when the function is discovered as plugin bridge entry.
+- CI runs `PSScriptAnalyzer` in non-blocking mode and validates help blocks for all discovered functions.
+- Git function quick reference: `docs/git-cheatsheet.md` (generated from `plugins/functions/git.ps1`).
 
 ## Project Layout
 ```
@@ -324,6 +329,9 @@ PowerShell profile function bridge:
 |-- .github/workflows/ci.yml
 |-- main.go
 |-- packs
+|-- plugins
+|   |-- variables.ps1
+|   `-- functions
 |-- tools
 |-- scripts
 `-- internal
