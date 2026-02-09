@@ -18,22 +18,51 @@ type Plugin struct {
 	Path string
 }
 
+type Entry struct {
+	Name string
+	Kind string // script|function
+	Path string
+}
+
+type Info struct {
+	Name        string
+	Kind        string
+	Path        string
+	Sources     []string
+	Runner      string
+	Synopsis    string
+	Description string
+	Parameters  []string
+	Examples    []string
+}
+
 var ErrNotFound = errors.New("plugin not found")
 var psFunctionLine = regexp.MustCompile(`(?i)^\s*function\s+([a-z0-9_-]+)\b`)
-
-const profileFunctionsFile = "Import-Module PSReadLine.txt"
+var psNamedTag = regexp.MustCompile(`(?i)^\.(synopsis|description|example|parameter)\b(?:\s+([a-z0-9_-]+))?\s*$`)
 
 func List(baseDir string) ([]Plugin, error) {
+	items, err := ListEntries(baseDir, true)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Plugin, 0, len(items))
+	for _, it := range items {
+		out = append(out, Plugin{Name: it.Name, Path: it.Path})
+	}
+	return out, nil
+}
+
+func ListEntries(baseDir string, includeFunctions bool) ([]Entry, error) {
 	dir := filepath.Join(baseDir, "plugins")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []Plugin{}, nil
+			return []Entry{}, nil
 		}
 		return nil, err
 	}
 
-	bestByName := map[string]Plugin{}
+	bestByName := map[string]Entry{}
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
@@ -43,37 +72,82 @@ func List(baseDir string) ([]Plugin, error) {
 			continue
 		}
 		baseName := pluginName(name)
-		candidate := Plugin{
-			Name: baseName,
-			Path: filepath.Join(dir, name),
-		}
+		candidate := Entry{Name: baseName, Kind: "script", Path: filepath.Join(dir, name)}
 		current, ok := bestByName[baseName]
 		if !ok || pluginScore(candidate.Path) < pluginScore(current.Path) {
 			bestByName[baseName] = candidate
 		}
 	}
 
-	plugins := make([]Plugin, 0, len(bestByName))
+	out := make([]Entry, 0, len(bestByName))
 	for _, p := range bestByName {
-		plugins = append(plugins, p)
-	}
-	functionPath := filepath.Join(dir, profileFunctionsFile)
-	functionNames, err := readPowerShellFunctionNames(functionPath)
-	if err != nil {
-		return nil, err
-	}
-	for _, name := range functionNames {
-		if _, ok := bestByName[name]; ok {
-			continue
-		}
-		plugins = append(plugins, Plugin{
-			Name: name,
-			Path: functionPath,
-		})
+		out = append(out, p)
 	}
 
-	sort.Slice(plugins, func(i, j int) bool { return plugins[i].Name < plugins[j].Name })
-	return plugins, nil
+	if includeFunctions {
+		fnMap, _, err := collectPowerShellFunctions(dir)
+		if err != nil {
+			return nil, err
+		}
+		for name, path := range fnMap {
+			if _, ok := bestByName[name]; ok {
+				continue
+			}
+			out = append(out, Entry{Name: name, Kind: "function", Path: path})
+		}
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Name == out[j].Name {
+			return out[i].Kind < out[j].Kind
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out, nil
+}
+
+func GetInfo(baseDir, name string) (Info, error) {
+	dir := filepath.Join(baseDir, "plugins")
+
+	candidate, err := findPlugin(dir, name)
+	if err != nil {
+		return Info{}, err
+	}
+	if candidate != "" {
+		return Info{
+			Name:    name,
+			Kind:    "script",
+			Path:    candidate,
+			Sources: []string{candidate},
+			Runner:  runnerForPath(candidate),
+		}, nil
+	}
+
+	fnPath, loadFiles, found, err := findPowerShellFunction(dir, name)
+	if err != nil {
+		return Info{}, err
+	}
+	if !found {
+		return Info{}, fmt.Errorf("%w: %s", ErrNotFound, name)
+	}
+
+	help, _ := parsePowerShellFunctionHelp(fnPath, name)
+	sources := sourcesForFunction(loadFiles, name)
+	if len(sources) == 0 {
+		sources = []string{fnPath}
+	}
+
+	return Info{
+		Name:        name,
+		Kind:        "function",
+		Path:        fnPath,
+		Sources:     sources,
+		Runner:      "powershell function bridge",
+		Synopsis:    help.Synopsis,
+		Description: help.Description,
+		Parameters:  help.Parameters,
+		Examples:    help.Examples,
+	}, nil
 }
 
 func Run(baseDir, name string, args []string) error {
@@ -83,14 +157,14 @@ func Run(baseDir, name string, args []string) error {
 		return err
 	}
 	if candidate == "" {
-		functionPath, found, fErr := findPowerShellFunction(dir, name)
+		_, loadFiles, found, fErr := findPowerShellFunction(dir, name)
 		if fErr != nil {
 			return fErr
 		}
 		if !found {
 			return fmt.Errorf("%w: %s", ErrNotFound, name)
 		}
-		return runPowerShellFunction(functionPath, name, args)
+		return runPowerShellFunction(loadFiles, name, args)
 	}
 	return execPlugin(candidate, args)
 }
@@ -146,18 +220,85 @@ func pluginScore(path string) int {
 	return len(order) + 1
 }
 
-func findPowerShellFunction(pluginsDir, name string) (string, bool, error) {
-	functionPath := filepath.Join(pluginsDir, profileFunctionsFile)
-	names, err := readPowerShellFunctionNames(functionPath)
+func findPowerShellFunction(pluginsDir, name string) (string, []string, bool, error) {
+	catalog, files, err := collectPowerShellFunctions(pluginsDir)
 	if err != nil {
-		return "", false, err
+		return "", nil, false, err
 	}
-	for _, fn := range names {
-		if fn == name {
-			return functionPath, true, nil
+	path, ok := catalog[name]
+	if !ok {
+		return "", nil, false, nil
+	}
+	return path, files, true, nil
+}
+
+func collectPowerShellFunctions(pluginsDir string) (map[string]string, []string, error) {
+	files, err := listPowerShellFunctionFiles(pluginsDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	catalog := map[string]string{}
+	for _, p := range files {
+		names, err := readPowerShellFunctionNames(p)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, n := range names {
+			if _, exists := catalog[n]; exists {
+				continue
+			}
+			catalog[n] = p
 		}
 	}
-	return "", false, nil
+	return catalog, files, nil
+}
+
+func listPowerShellFunctionFiles(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var files []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !isPowerShellFunctionSource(name) {
+			continue
+		}
+		files = append(files, filepath.Join(dir, name))
+	}
+	sort.Slice(files, func(i, j int) bool {
+		si := functionSourceScore(files[i])
+		sj := functionSourceScore(files[j])
+		if si == sj {
+			return strings.ToLower(files[i]) < strings.ToLower(files[j])
+		}
+		return si < sj
+	})
+	return files, nil
+}
+
+func isPowerShellFunctionSource(name string) bool {
+	ext := strings.ToLower(filepath.Ext(name))
+	return ext == ".ps1" || ext == ".psm1" || ext == ".txt"
+}
+
+func functionSourceScore(path string) int {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".ps1":
+		return 0
+	case ".psm1":
+		return 1
+	case ".txt":
+		return 2
+	default:
+		return 3
+	}
 }
 
 func readPowerShellFunctionNames(path string) ([]string, error) {
@@ -195,6 +336,122 @@ func readPowerShellFunctionNames(path string) ([]string, error) {
 	return out, nil
 }
 
+type functionHelp struct {
+	Synopsis    string
+	Description string
+	Parameters  []string
+	Examples    []string
+}
+
+func parsePowerShellFunctionHelp(path, functionName string) (functionHelp, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return functionHelp{}, err
+	}
+	lines := strings.Split(string(data), "\n")
+	fnIdx := -1
+	for i, line := range lines {
+		m := psFunctionLine.FindStringSubmatch(line)
+		if len(m) == 2 && strings.EqualFold(strings.TrimSpace(m[1]), functionName) {
+			fnIdx = i
+			break
+		}
+	}
+	if fnIdx == -1 {
+		return functionHelp{}, nil
+	}
+
+	end := fnIdx - 1
+	for end >= 0 && strings.TrimSpace(lines[end]) == "" {
+		end--
+	}
+	if end < 0 || strings.TrimSpace(lines[end]) != "#>" {
+		return functionHelp{}, nil
+	}
+	start := end - 1
+	for start >= 0 && strings.TrimSpace(lines[start]) != "<#" {
+		start--
+	}
+	if start < 0 {
+		return functionHelp{}, nil
+	}
+
+	block := lines[start+1 : end]
+	return parseCommentBlockHelp(block), nil
+}
+
+func parseCommentBlockHelp(lines []string) functionHelp {
+	helper := functionHelp{}
+	var mode string
+	var paramName string
+	paramText := map[string][]string{}
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
+		}
+		if m := psNamedTag.FindStringSubmatch(line); len(m) >= 2 {
+			mode = strings.ToLower(m[1])
+			if mode == "parameter" {
+				paramName = strings.TrimSpace(m[2])
+				if paramName != "" {
+					if _, ok := paramText[paramName]; !ok {
+						paramText[paramName] = []string{}
+					}
+				}
+			} else {
+				paramName = ""
+			}
+			continue
+		}
+		switch mode {
+		case "synopsis":
+			helper.Synopsis = strings.TrimSpace(strings.TrimSpace(helper.Synopsis + " " + line))
+		case "description":
+			helper.Description = strings.TrimSpace(strings.TrimSpace(helper.Description + " " + line))
+		case "example":
+			helper.Examples = append(helper.Examples, line)
+		case "parameter":
+			if paramName != "" {
+				paramText[paramName] = append(paramText[paramName], line)
+			}
+		}
+	}
+	if len(paramText) > 0 {
+		names := make([]string, 0, len(paramText))
+		for name := range paramText {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			text := strings.TrimSpace(strings.Join(paramText[name], " "))
+			if text == "" {
+				helper.Parameters = append(helper.Parameters, name)
+			} else {
+				helper.Parameters = append(helper.Parameters, fmt.Sprintf("%s: %s", name, text))
+			}
+		}
+	}
+	return helper
+}
+
+func sourcesForFunction(loadFiles []string, functionName string) []string {
+	out := make([]string, 0)
+	for _, p := range loadFiles {
+		names, err := readPowerShellFunctionNames(p)
+		if err != nil {
+			continue
+		}
+		for _, n := range names {
+			if n == functionName {
+				out = append(out, p)
+				break
+			}
+		}
+	}
+	return out
+}
+
 func preferredPluginExtOrder() []string {
 	if shellLooksLikeBash() {
 		if runtime.GOOS == "windows" {
@@ -226,12 +483,16 @@ func quotePowerShellArg(v string) string {
 	return "'" + strings.ReplaceAll(v, "'", "''") + "'"
 }
 
-func runPowerShellFunction(profilePath, functionName string, args []string) error {
+func runPowerShellFunction(profilePaths []string, functionName string, args []string) error {
 	ps := firstAvailableBinary("pwsh", "powershell")
 	if ps == "" {
 		return errors.New("pwsh/powershell executable not found")
 	}
-	script := "$dmProfilePath=" + quotePowerShellArg(profilePath) + "; $oldEap=$ErrorActionPreference; $ErrorActionPreference='SilentlyContinue'; Invoke-Expression (Get-Content -Raw $dmProfilePath); $ErrorActionPreference=$oldEap; " + functionName
+	quotedPaths := make([]string, 0, len(profilePaths))
+	for _, p := range profilePaths {
+		quotedPaths = append(quotedPaths, quotePowerShellArg(p))
+	}
+	script := "$dmProfilePaths=@(" + strings.Join(quotedPaths, ",") + "); $oldEap=$ErrorActionPreference; $ErrorActionPreference='SilentlyContinue'; foreach($dmProfilePath in $dmProfilePaths){ if(Test-Path $dmProfilePath){ Invoke-Expression (Get-Content -Raw $dmProfilePath) } }; $ErrorActionPreference=$oldEap; " + functionName
 	if len(args) > 0 {
 		quoted := make([]string, 0, len(args))
 		for _, a := range args {
@@ -300,6 +561,33 @@ func execPlugin(path string, args []string) error {
 func isSupportedPlugin(name string) bool {
 	ext := strings.ToLower(filepath.Ext(name))
 	return ext == ".ps1" || ext == ".cmd" || ext == ".bat" || ext == ".exe" || ext == ".sh" || ext == "" || ext == ".out"
+}
+
+func runnerForPath(path string) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch runtime.GOOS {
+	case "windows":
+		switch ext {
+		case ".ps1":
+			return "powershell -File"
+		case ".sh":
+			return "sh"
+		case ".cmd", ".bat":
+			return "cmd /C"
+		case ".exe", "", ".out":
+			return "direct"
+		}
+	default:
+		switch ext {
+		case ".ps1":
+			return "pwsh -File"
+		case ".sh":
+			return "sh"
+		default:
+			return "direct"
+		}
+	}
+	return "unknown"
 }
 
 func pluginName(name string) string {

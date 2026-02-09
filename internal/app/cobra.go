@@ -44,6 +44,7 @@ func Run(args []string) int {
 	_ = root.RegisterFlagCompletionFunc("pack", completePackNames)
 
 	addCobraSubcommands(root, &opts)
+	addPluginAwareHelpCommand(root, &opts)
 	addCompletionCommands(root)
 	applySubcommandHelpTemplate(root)
 
@@ -55,6 +56,17 @@ func Run(args []string) int {
 			return codeErr.code
 		}
 		msg := strings.TrimSpace(err.Error())
+		if strings.HasPrefix(msg, "unknown help topic") {
+			_, rest := parseFlags(rewriteGroupShortcuts(args))
+			if len(rest) >= 2 && rest[0] == "help" {
+				rt, loadErr := loadRuntime(opts)
+				if loadErr != nil {
+					fmt.Println("Error:", loadErr)
+					return 1
+				}
+				return runPlugin(rt.BaseDir, []string{"info", rest[1]})
+			}
+		}
 		if strings.HasPrefix(msg, "unknown command") {
 			rt, loadErr := loadRuntime(opts)
 			if loadErr != nil {
@@ -85,4 +97,31 @@ func legacyArgsWithFlags(opts flags, positional []string) []string {
 	}
 	legacyArgs = append(legacyArgs, positional...)
 	return legacyArgs
+}
+
+func addPluginAwareHelpCommand(root *cobra.Command, opts *flags) {
+	helpCmd := &cobra.Command{
+		Use:   "help [command]",
+		Short: "Help about any command or plugin/function",
+		Args:  cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return root.Help()
+			}
+			target, _, err := root.Find(args)
+			if err == nil && target != nil && target != root {
+				return target.Help()
+			}
+			rt, loadErr := loadRuntime(*opts)
+			if loadErr != nil {
+				return loadErr
+			}
+			code := runPlugin(rt.BaseDir, []string{"info", args[0]})
+			if code != 0 {
+				return exitCodeError{code: code}
+			}
+			return nil
+		},
+	}
+	root.SetHelpCommand(helpCmd)
 }

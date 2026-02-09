@@ -576,8 +576,10 @@ func newPluginCommand(opts *flags) *cobra.Command {
 	pluginCmd := &cobra.Command{
 		Use:   "plugin",
 		Short: "Manage plugins",
-		Long:  "List and execute scripts from the plugins directory.",
+		Long:  "List and execute scripts/functions from the plugins directory.",
 		Example: "dm plugin list\n" +
+			"dm plugin list --functions\n" +
+			"dm plugin info restart_backend\n" +
 			"dm plugin run paint",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -597,12 +599,26 @@ func newPluginCommand(opts *flags) *cobra.Command {
 		return nil
 	}
 
-	pluginCmd.AddCommand(&cobra.Command{
+	var listFunctions bool
+	listCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List available plugins",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if listFunctions {
+				return runPluginArgs("list", "--functions")
+			}
 			return runPluginArgs("list")
+		},
+	}
+	listCmd.Flags().BoolVarP(&listFunctions, "functions", "f", false, "include discovered PowerShell functions")
+	pluginCmd.AddCommand(listCmd)
+	pluginCmd.AddCommand(&cobra.Command{
+		Use:   "info <name>",
+		Short: "Show plugin/function details",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runPluginArgs("info", args[0])
 		},
 	})
 	pluginCmd.AddCommand(&cobra.Command{

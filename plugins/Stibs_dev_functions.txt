@@ -1,0 +1,46 @@
+
+function stibs {
+    Set-Location varStibsMonoPath
+}
+
+function code-stibs {
+    code varStibsMonoPath
+}
+
+
+function stibs_logs_backend {
+    docker logs --tail 50 docker-backend-1
+}
+
+
+function stibs_logs_frontend {
+    docker logs --tail 50 docker-frontend-1
+}
+
+function stibs_dev_up {
+    docker compose -f "$varStibsDockerPath\docker-compose.dev.yml" up
+}
+
+function stibs_dev_down {
+    docker compose -f "$varStibsDockerPath\docker-compose.dev.yml" down
+}
+
+
+function stibs_db {
+    Write-Host "mariadb -h 127.0.0.1 -P 13306 -u stibs -pstibs stibs"
+}
+
+
+function stibs_db_shell {
+    docker compose -f "$varStibsDockerPath\docker-compose.dev.yml" exec mariadb mariadb -u stibs -pstibs stibs
+}
+
+
+function stibs_dev_restart_backend {
+    docker compose -f "$varStibsDockerPath\docker-compose.dev.yml" restart backend
+}
+
+
+function stibs_dev_rebuild_backend {
+    docker compose -f "$varStibsDockerPath\docker-compose.dev.yml" up -d --build backend
+}

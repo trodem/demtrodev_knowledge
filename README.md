@@ -188,6 +188,8 @@ dm pack current
 dm pack unset
 dm validate
 dm plugin list
+dm plugin list --functions
+dm plugin info <name>
 dm plugin run <name> [args...]
 dm <plugin> [args...]
 dm run <alias>
@@ -302,6 +304,8 @@ Place scripts in `plugins/`:
 Run:
 ```bash
 dm plugin list
+dm plugin list --functions
+dm plugin info <name>
 dm plugin run <name> [args...]
 dm <name> [args...]
 ```
@@ -311,7 +315,8 @@ For cross-shell use, provide both plugin variants when needed:
 - `plugins/<name>.sh` for Bash/sh
 
 PowerShell profile function bridge:
-- If `plugins/Import-Module PSReadLine.txt` exists, `dm <function_name>` can invoke functions declared there.
+- `dm <function_name>` can invoke functions declared in PowerShell source files under `plugins/` (`.ps1`, `.psm1`, `.txt`).
+- `dm help <function_name>` shows detailed info when the function is discovered as plugin bridge entry.
 
 ## Project Layout
 ```

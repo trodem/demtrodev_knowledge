@@ -1,0 +1,40 @@
+function dev_path {
+    Set-Location "$varDevPath"
+}
+
+function stibs_path {
+    Set-Location "$varDevPath\50_STIBS\stibs-mono\stibs\docker"
+}
+
+function dm_cli_path {
+    Set-Location "$varSynologyDrivePath\5_Demtrodev_Knowledge"
+}
+
+
+function dev_path {
+    Set-Location "$varDevPath"
+}
+
+function code-stibs {
+    code "$varDevPath\50_STIBS\stibs-mono"
+}
+
+function dps {
+    docker ps
+}
+
+
+function heidi {
+    Start-Process "C:\Program Files\HeidiSQL\heidisql.exe"
+}
+
+function run_docker_desktop {
+    Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+}
+
+
+function get_name {
+   	Write-Host ">> Attendo che Docker sia pronto..."
+}
+
+

@@ -412,22 +412,72 @@ func runAdd(baseDir string, opts flags, args []string) int {
 
 func runPlugin(baseDir string, args []string) int {
 	if len(args) == 0 {
-		fmt.Println("Usage: dm plugin <list|run> ...")
+		fmt.Println("Usage: dm plugin <list|info|run> ...")
 		return 0
 	}
 	switch args[0] {
 	case "list":
-		items, err := plugins.List(baseDir)
+		includeFunctions := false
+		for _, arg := range args[1:] {
+			if arg == "--functions" || arg == "-f" {
+				includeFunctions = true
+			}
+		}
+		items, err := plugins.ListEntries(baseDir, includeFunctions)
 		if err != nil {
 			fmt.Println("Error:", err)
 			return 1
 		}
 		if len(items) == 0 {
-			fmt.Println("No plugins found.")
+			fmt.Println("No plugins/functions found.")
 			return 0
 		}
-		for _, p := range items {
-			fmt.Println(p.Name)
+		for _, item := range items {
+			if includeFunctions {
+				if item.Kind == "function" {
+					fmt.Println(item.Name)
+				}
+				continue
+			}
+			if item.Kind == "script" {
+				fmt.Println(item.Name)
+			}
+		}
+		return 0
+	case "info":
+		if len(args) < 2 {
+			fmt.Println("Usage: dm plugin info <name>")
+			return 0
+		}
+		info, err := plugins.GetInfo(baseDir, args[1])
+		if err != nil {
+			fmt.Println("Error:", err)
+			return 1
+		}
+		fmt.Println("Name      :", info.Name)
+		fmt.Println("Kind      :", info.Kind)
+		fmt.Println("Path      :", info.Path)
+		fmt.Println("Runner    :", info.Runner)
+		if len(info.Sources) > 1 {
+			fmt.Println("Sources   :", strings.Join(info.Sources, ", "))
+		}
+		if strings.TrimSpace(info.Synopsis) != "" {
+			fmt.Println("Synopsis  :", info.Synopsis)
+		}
+		if strings.TrimSpace(info.Description) != "" {
+			fmt.Println("Description:", info.Description)
+		}
+		if len(info.Parameters) > 0 {
+			fmt.Println("Parameters:")
+			for _, p := range info.Parameters {
+				fmt.Println("-", p)
+			}
+		}
+		if len(info.Examples) > 0 {
+			fmt.Println("Examples:")
+			for _, ex := range info.Examples {
+				fmt.Println("-", ex)
+			}
 		}
 		return 0
 	case "run":
@@ -441,7 +491,7 @@ func runPlugin(baseDir string, args []string) int {
 		}
 		return 0
 	default:
-		fmt.Println("Usage: dm plugin <list|run> ...")
+		fmt.Println("Usage: dm plugin <list|info|run> ...")
 		return 0
 	}
 }
