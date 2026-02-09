@@ -14,5 +14,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.24.x"
+      - name: Check Plugin Help Blocks
+        run: go run ./scripts/check_plugin_help.go
       - name: Test
         run: go test ./...
