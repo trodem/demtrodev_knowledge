@@ -105,9 +105,15 @@ func runTargetOrSearch(baseDir string, cfg config.Config, args []string) int {
 	_, isProject := cfg.Projects[name]
 
 	if !isJump && !isProject {
-		// fallback: run as search query
-		knowledgeDir := config.ResolvePath(baseDir, cfg.Search.Knowledge)
-		search.InKnowledge(knowledgeDir, strings.Join(args, " "))
+		err := plugins.Run(baseDir, args[0], args[1:])
+		if err != nil {
+			if plugins.IsNotFound(err) {
+				fmt.Println("Error:", err)
+				return 1
+			}
+			fmt.Println("Error:", err)
+			return 1
+		}
 		return 0
 	}
 

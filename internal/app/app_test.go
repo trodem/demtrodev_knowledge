@@ -3,6 +3,8 @@ package app
 import (
 	"reflect"
 	"testing"
+
+	"cli/internal/config"
 )
 
 func TestParseFlagsToolsShortcut(t *testing.T) {
@@ -45,5 +47,19 @@ func TestParseFlagsPluginsShortcut(t *testing.T) {
 	want := []string{"plugin", "list"}
 	if !reflect.DeepEqual(out, want) {
 		t.Fatalf("expected %v, got %v", want, out)
+	}
+}
+
+func TestRunTargetOrSearchUnknownReturnsError(t *testing.T) {
+	baseDir := t.TempDir()
+	cfg := config.Config{
+		Jump:     map[string]string{},
+		Run:      map[string]string{},
+		Projects: map[string]config.Project{},
+	}
+
+	code := runTargetOrSearch(baseDir, cfg, []string{"not-existing-command"})
+	if code != 1 {
+		t.Fatalf("expected exit code 1, got %d", code)
 	}
 }

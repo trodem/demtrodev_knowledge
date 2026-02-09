@@ -189,6 +189,7 @@ dm pack unset
 dm validate
 dm plugin list
 dm plugin run <name> [args...]
+dm <plugin> [args...]
 dm run <alias>
 dm find <query>
 dm tools
@@ -209,6 +210,9 @@ Notes:
   - `-g` / `--plugins` => `plugin`
 - Pack profile shortcut:
   - `dm -k <pack> <cmd...>` runs `<cmd...>` with `--pack <pack>` (example: `dm -k vim run vim`).
+- Fallback dispatch:
+  - `dm <name>` now tries `jump/project` first, then direct plugin execution.
+  - If no plugin exists, `dm` returns an error (it does not auto-run search).
 
 Interactive target:
 ```bash
@@ -299,7 +303,15 @@ Run:
 ```bash
 dm plugin list
 dm plugin run <name> [args...]
+dm <name> [args...]
 ```
+
+For cross-shell use, provide both plugin variants when needed:
+- `plugins/<name>.ps1` for PowerShell
+- `plugins/<name>.sh` for Bash/sh
+
+PowerShell profile function bridge:
+- If `plugins/Import-Module PSReadLine.txt` exists, `dm <function_name>` can invoke functions declared there.
 
 ## Project Layout
 ```
