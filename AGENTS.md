@@ -40,6 +40,7 @@ Repository guidelines for automated agents.
 - Keep group shortcuts aligned across legacy/Cobra parsing:
   - `-t` / `--tools` -> `tools`
   - `-p` / `--plugins` -> `plugins`
+  - `-o` / `--open` -> `open`
 - Tools should be invocable both as:
   - `dm tools <name>`
   - `dm -t <name>`

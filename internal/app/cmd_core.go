@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"cli/internal/runner"
 	"cli/internal/ui"
 	"cli/tools"
@@ -37,6 +39,74 @@ func addCobraSubcommands(root *cobra.Command, opts *flags) {
 			return nil
 		},
 	})
+	root.AddCommand(&cobra.Command{
+		Use:     "ps_profile",
+		Aliases: []string{"profile"},
+		Short:   "Show functions and aliases from PowerShell $PROFILE",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			code := showPowerShellSymbols(resolveUserPowerShellProfilePath(), "$PROFILE")
+			if code != 0 {
+				return exitCodeError{code: code}
+			}
+			return nil
+		},
+	})
+	cpCmd := &cobra.Command{
+		Use:   "cp",
+		Short: "Copy helper targets",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+	cpCmd.AddCommand(&cobra.Command{
+		Use:   "profile",
+		Short: "Overwrite PowerShell $PROFILE from plugins/functions/0_powershell_profile.ps1",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rt, err := loadRuntime(*opts)
+			if err != nil {
+				return err
+			}
+			if err := copyPowerShellProfileFromPlugin(rt.BaseDir); err != nil {
+				return err
+			}
+			fmt.Println("OK: profile overwritten from plugins/functions/0_powershell_profile.ps1")
+			return nil
+		},
+	})
+	root.AddCommand(cpCmd)
+	openCmd := &cobra.Command{
+		Use:   "open",
+		Short: "Open profile files in Notepad",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+	openCmd.AddCommand(&cobra.Command{
+		Use:   "ps_profile",
+		Short: "Open PowerShell $PROFILE in Notepad",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return openUserPowerShellProfileInNotepad()
+		},
+	})
+	openCmd.AddCommand(&cobra.Command{
+		Use:     "profile",
+		Aliases: []string{"profile-source", "profile-src"},
+		Short:   "Open plugins/functions/0_powershell_profile.ps1 in Notepad",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rt, err := loadRuntime(*opts)
+			if err != nil {
+				return err
+			}
+			return openPluginPowerShellProfileInNotepad(rt.BaseDir)
+		},
+	})
+	root.AddCommand(openCmd)
 	root.AddCommand(&cobra.Command{
 		Use:   "list",
 		Short: "List config entries",
@@ -144,6 +214,14 @@ func newPluginCommand(opts *flags) *cobra.Command {
 	}
 	listCmd.Flags().BoolVarP(&listFunctions, "functions", "f", false, "include discovered PowerShell functions")
 	pluginCmd.AddCommand(listCmd)
+	pluginCmd.AddCommand(&cobra.Command{
+		Use:   "$profile",
+		Short: "Show functions and aliases from plugins/functions/0_powershell_profile.ps1",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runPluginArgs("$profile")
+		},
+	})
 	pluginCmd.AddCommand(&cobra.Command{
 		Use:   "info <name>",
 		Short: "Show plugin/function details",

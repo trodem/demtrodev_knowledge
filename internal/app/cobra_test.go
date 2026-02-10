@@ -42,6 +42,14 @@ func TestRewriteGroupShortcutsPlugin(t *testing.T) {
 	}
 }
 
+func TestRewriteGroupShortcutsOpen(t *testing.T) {
+	got := rewriteGroupShortcuts([]string{"-o", "profile"})
+	want := []string{"open", "profile"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+}
+
 func TestInstallCompletionPowerShell(t *testing.T) {
 	home := t.TempDir()
 	root := &cobra.Command{Use: "dm"}

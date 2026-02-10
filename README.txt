@@ -27,6 +27,10 @@ Useful commands
 ---------------
 General help:
   dm help
+  dm ps_profile
+  dm cp profile
+  dm -o ps_profile
+  dm -o profile
 
 Tools menu:
   dm tools

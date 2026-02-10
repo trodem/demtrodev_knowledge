@@ -42,6 +42,14 @@ func TestParseFlagsPluginsShortcut(t *testing.T) {
 	}
 }
 
+func TestParseFlagsOpenShortcut(t *testing.T) {
+	_, out := parseFlags([]string{"-o", "profile"})
+	want := []string{"open", "profile"}
+	if !reflect.DeepEqual(out, want) {
+		t.Fatalf("expected %v, got %v", want, out)
+	}
+}
+
 func TestRunTargetOrSearchUnknownReturnsError(t *testing.T) {
 	baseDir := t.TempDir()
 	cfg := config.Config{

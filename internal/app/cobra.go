@@ -41,6 +41,7 @@ func Run(args []string) int {
 	root.PersistentFlags().StringVar(&opts.Profile, "profile", "", "use profile")
 	root.PersistentFlags().BoolP("tools", "t", false, "shortcut for 'tools' command")
 	root.PersistentFlags().BoolP("plugins", "p", false, "shortcut for 'plugins' command")
+	root.PersistentFlags().BoolP("open", "o", false, "shortcut for 'open' command")
 	root.CompletionOptions.DisableDefaultCmd = true
 
 	addCobraSubcommands(root, &opts)
@@ -74,6 +75,12 @@ func Run(args []string) int {
 				return 1
 			}
 			_, rest := parseFlags(rewriteGroupShortcuts(args))
+			if len(rest) > 0 && rest[0] == "$profile" {
+				return showPowerShellSymbols(resolveUserPowerShellProfilePath(), "$PROFILE")
+			}
+			if len(rest) > 1 && rest[0] == "plugins" && (rest[1] == "$profile" || strings.EqualFold(rest[1], "profile")) {
+				return runPlugin(rt.BaseDir, []string{"$profile"})
+			}
 			return runTargetOrSearch(rt.BaseDir, rt.Config, rest)
 		}
 		if msg != "" {

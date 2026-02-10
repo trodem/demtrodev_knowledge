@@ -118,6 +118,10 @@ dm help
 dm aliases
 dm list jumps
 dm add jump <name> <path>
+dm ps_profile
+dm cp profile
+dm -o ps_profile
+dm -o profile
 dm validate
 dm plugins list
 dm plugins list --functions
@@ -130,6 +134,7 @@ dm tools
 dm tools <tool>
 dm -t [tool]
 dm -p [cmd]
+dm -o [cmd]
 dm <project> <action>
 dm <name>
 ```
@@ -138,6 +143,7 @@ Notes:
 - Group shortcuts:
   - `-t` / `--tools` => `tools`
   - `-p` / `--plugins` => `plugins`
+  - `-o` / `--open` => `open`
 - Fallback dispatch:
   - `dm <name>` now tries `jump/project` first, then direct plugin execution.
   - If no plugin exists, `dm` returns an error.

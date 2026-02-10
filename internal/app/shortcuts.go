@@ -8,6 +8,8 @@ func mapGroupShortcut(arg string) (string, bool) {
 		return "tools", true
 	case "-p", "--plugins":
 		return "plugins", true
+	case "-o", "--open":
+		return "open", true
 	default:
 		return "", false
 	}
