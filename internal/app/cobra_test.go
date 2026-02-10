@@ -136,3 +136,17 @@ func TestInstallCompletionUnsupportedShell(t *testing.T) {
 		t.Fatal("expected unsupported shell error")
 	}
 }
+
+func TestAddCobraSubcommandsIncludesDoctor(t *testing.T) {
+	root := &cobra.Command{Use: "dm"}
+	opts := &flags{}
+	addCobraSubcommands(root, opts)
+
+	cmd, _, err := root.Find([]string{"doctor"})
+	if err != nil {
+		t.Fatalf("expected doctor command, got error: %v", err)
+	}
+	if cmd == nil || cmd.Name() != "doctor" {
+		t.Fatalf("expected doctor command, got %#v", cmd)
+	}
+}

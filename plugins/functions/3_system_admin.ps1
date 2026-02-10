@@ -488,3 +488,196 @@ function w_sig {
     $lines = netsh wlan show interfaces
     $lines | Select-String -Pattern "^\s*(Name|Description|State|SSID|Signal|Radio type|Receive rate|Transmit rate)\s*:"
 }
+
+
+
+<#
+.SYNOPSIS
+Trova processi.
+
+.DESCRIPTION
+Cerca processi attivi per nome.
+
+.PARAMETER Name
+Nome del processo.
+
+.EXAMPLE
+dm pgrep chrome
+#>
+function pgrep {
+    param([Parameter(Mandatory)][string]$Name)
+
+    Get-Process *$Name* |
+        Select-Object Name, Id, CPU, WorkingSet
+}
+
+<#
+.SYNOPSIS
+Termina processi.
+
+.DESCRIPTION
+Chiude processi corrispondenti al nome.
+
+.PARAMETER Name
+Nome processo.
+
+.EXAMPLE
+dm pkill chrome
+#>
+function pkill {
+    param([Parameter(Mandatory)][string]$Name)
+
+    Get-Process *$Name* -ErrorAction SilentlyContinue | Stop-Process -Force
+}
+
+<#
+.SYNOPSIS
+Mostra top processi CPU.
+
+.EXAMPLE
+dm top_cpu
+#>
+function top_cpu {
+    Get-Process |
+        Sort-Object CPU -Descending |
+        Select-Object -First 10 Name, CPU, Id
+}
+
+# =========================
+# UTILITY
+# =========================
+
+<#
+.SYNOPSIS
+Mostra timestamp.
+
+.EXAMPLE
+dm now
+#>
+function now {
+    Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+}
+
+<#
+.SYNOPSIS
+Log rapido con timestamp.
+
+.PARAMETER Message
+Messaggio da loggare.
+
+.EXAMPLE
+dm log "deploy partito"
+#>
+function log {
+    param([Parameter(Mandatory)][string]$Message)
+    Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') | $Message"
+}
+
+<#
+.SYNOPSIS
+Copia testo negli appunti.
+
+.PARAMETER Text
+Testo da copiare.
+
+.EXAMPLE
+dm clip "hello"
+#>
+function clip {
+    param([Parameter(Mandatory)][string]$Text)
+    $Text | Set-Clipboard
+}
+
+<#
+.SYNOPSIS
+Legge contenuto appunti.
+
+.EXAMPLE
+dm paste
+#>
+function paste {
+    Get-Clipboard
+}
+
+<#
+.SYNOPSIS
+Messaggio attesa Docker.
+
+.DESCRIPTION
+Placeholder per workflow Docker readiness.
+
+.EXAMPLE
+dm get_name
+#>
+function get_name {
+    Write-Host ">> Attendo che Docker sia pronto..."
+}
+
+
+# =========================
+# NETWORK
+# =========================
+
+<#
+.SYNOPSIS
+Ping verso host.
+
+.DESCRIPTION
+Invia 4 richieste ICMP e mostra stato e tempi.
+
+.PARAMETER ComputerName
+Host o IP da testare.
+
+.EXAMPLE
+dm pingg google.com
+#>
+function pingg {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ComputerName
+    )
+
+    Test-Connection -ComputerName $ComputerName -Count 4 |
+        Select-Object Address, ResponseTime, Status
+}
+
+<#
+.SYNOPSIS
+Mostra IP locale.
+
+.DESCRIPTION
+Elenca indirizzi IPv4 attivi.
+
+.EXAMPLE
+dm myip
+#>
+function myip {
+    Get-NetIPAddress -AddressFamily IPv4 |
+        Where-Object {$_.InterfaceAlias -notlike "*Loopback*"} |
+        Select-Object IPAddress, InterfaceAlias
+}
+
+<#
+.SYNOPSIS
+Test porta remota.
+
+.DESCRIPTION
+Verifica connessione TCP su host e porta.
+
+.PARAMETER ComputerName
+Host da testare.
+
+.PARAMETER Port
+Porta da verificare.
+
+.EXAMPLE
+dm test_port google.com 443
+#>
+function test_port {
+    param(
+        [string]$ComputerName,
+        [int]$Port
+    )
+
+    Test-NetConnection -ComputerName $ComputerName -Port $Port
+}

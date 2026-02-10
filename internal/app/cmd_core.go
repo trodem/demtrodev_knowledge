@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"cli/internal/agent"
+	"cli/internal/doctor"
 	"cli/internal/plugins"
 	"cli/internal/runner"
 	"cli/internal/ui"
@@ -181,6 +182,32 @@ func addCobraSubcommands(root *cobra.Command, opts *flags) {
 			return nil
 		},
 	})
+	var doctorJSON bool
+	doctorCmd := &cobra.Command{
+		Use:   "doctor",
+		Short: "Run diagnostics for agent, providers, plugins, and tool paths",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rt, err := loadRuntime(*opts)
+			if err != nil {
+				return err
+			}
+			report := doctor.Run(rt.BaseDir)
+			if doctorJSON {
+				if err := doctor.RenderJSON(report); err != nil {
+					return err
+				}
+			} else {
+				doctor.RenderText(report)
+			}
+			if report.ErrorCount > 0 {
+				return exitCodeError{code: 1}
+			}
+			return nil
+		},
+	}
+	doctorCmd.Flags().BoolVar(&doctorJSON, "json", false, "render diagnostics as JSON")
+	root.AddCommand(doctorCmd)
 	var askProvider string
 	var askModel string
 	var askBaseURL string

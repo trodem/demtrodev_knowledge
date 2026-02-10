@@ -14,6 +14,7 @@ import (
 
 	"cli/internal/agent"
 	"cli/internal/config"
+	"cli/internal/doctor"
 	"cli/internal/plugins"
 	"cli/internal/runner"
 	"cli/internal/ui"
@@ -93,6 +94,26 @@ func runLegacy(args []string) int {
 		return runAdd(baseDir, args[1:])
 	case "validate":
 		return runValidate(baseDir, cfg)
+	case "doctor":
+		useJSON := false
+		for _, a := range args[1:] {
+			if strings.TrimSpace(a) == "--json" {
+				useJSON = true
+			}
+		}
+		report := doctor.Run(baseDir)
+		if useJSON {
+			if err := doctor.RenderJSON(report); err != nil {
+				fmt.Println("Error:", err)
+				return 1
+			}
+		} else {
+			doctor.RenderText(report)
+		}
+		if report.ErrorCount > 0 {
+			return 1
+		}
+		return 0
 	case "plugins":
 		return runPlugin(baseDir, args[1:])
 	case "tools":
@@ -733,7 +754,7 @@ func runPlugin(baseDir string, args []string) int {
 
 func suggestTopLevelName(baseDir string, cfg config.Config, input string) string {
 	candidates := []string{
-		"aliases", "config", "ps_profile", "cp", "open", "list", "add", "validate", "plugins", "tools", "run",
+		"aliases", "config", "ps_profile", "cp", "open", "list", "add", "validate", "doctor", "plugins", "tools", "run",
 	}
 	for k := range cfg.Jump {
 		candidates = append(candidates, k)

@@ -130,6 +130,8 @@ dm plugins info <name>
 dm plugins menu
 dm plugins run <name> [args...]
 dm <plugin> [args...]
+dm doctor
+dm doctor --json
 dm ask <prompt...>
 dm ask --provider ollama --model deepseek-coder-v2:latest "spiegami questo errore"
 dm ask
@@ -218,6 +220,19 @@ Example:
 
 You can also provide the OpenAI key with environment variable:
 - `OPENAI_API_KEY`
+
+## Doctor
+Run diagnostics for agent setup and runtime dependencies:
+```bash
+dm doctor
+dm doctor --json
+```
+Checks include:
+- agent config file loading (`dm.agent.json`)
+- Ollama reachability and selected model
+- OpenAI key presence/config
+- plugin/function discovery
+- common user paths used by tools
 
 Interactive target:
 ```bash
