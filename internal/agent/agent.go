@@ -51,6 +51,7 @@ type DecisionResult struct {
 	Action   string
 	Answer   string
 	Plugin   string
+	Tool     string
 	Args     []string
 	Reason   string
 	Provider string
@@ -108,7 +109,7 @@ func AskWithOptions(prompt string, opts AskOptions) (AskResult, error) {
 	}
 }
 
-func DecideWithPlugins(userPrompt string, pluginCatalog string, opts AskOptions) (DecisionResult, error) {
+func DecideWithPlugins(userPrompt string, pluginCatalog string, toolCatalog string, opts AskOptions) (DecisionResult, error) {
 	p := strings.TrimSpace(userPrompt)
 	if p == "" {
 		return DecisionResult{}, fmt.Errorf("prompt is required")
@@ -116,20 +117,29 @@ func DecideWithPlugins(userPrompt string, pluginCatalog string, opts AskOptions)
 	if strings.TrimSpace(pluginCatalog) == "" {
 		pluginCatalog = "(none)"
 	}
+	if strings.TrimSpace(toolCatalog) == "" {
+		toolCatalog = "(none)"
+	}
 	decisionPrompt := strings.Join([]string{
 		"You are an execution planner for a CLI assistant.",
-		"You can either answer directly, or request running one plugin.",
+		"You can either answer directly, or request running one plugin/function, or request running one tool.",
 		"Available plugins/functions:",
 		pluginCatalog,
+		"",
+		"Available tools:",
+		toolCatalog,
 		"",
 		"Return ONLY valid JSON with this schema:",
 		`{"action":"answer","answer":"text"}`,
 		`or {"action":"run_plugin","plugin":"name","args":["arg1"],"reason":"why","answer":"optional text before/after run"}`,
+		`or {"action":"run_tool","tool":"name","reason":"why","answer":"optional text before/after run"}`,
 		"",
 		"Rules:",
-		"- action must be answer or run_plugin",
+		"- action must be answer, run_plugin, or run_tool",
 		"- if run_plugin, plugin must be one of the available plugin names",
+		"- if run_tool, tool must be one of the available tools",
 		"- do not invent plugin names",
+		"- do not invent tool names",
 		"",
 		"User request:",
 		p,
@@ -151,7 +161,7 @@ func DecideWithPlugins(userPrompt string, pluginCatalog string, opts AskOptions)
 	}
 	parsed.Provider = raw.Provider
 	parsed.Model = raw.Model
-	if parsed.Action != "run_plugin" {
+	if parsed.Action != "run_plugin" && parsed.Action != "run_tool" {
 		parsed.Action = "answer"
 	}
 	return parsed, nil
@@ -176,6 +186,7 @@ func parseDecisionJSON(text string) (DecisionResult, error) {
 		Action string   `json:"action"`
 		Answer string   `json:"answer"`
 		Plugin string   `json:"plugin"`
+		Tool   string   `json:"tool"`
 		Args   []string `json:"args"`
 		Reason string   `json:"reason"`
 	}
@@ -186,6 +197,7 @@ func parseDecisionJSON(text string) (DecisionResult, error) {
 		Action: strings.ToLower(strings.TrimSpace(obj.Action)),
 		Answer: strings.TrimSpace(obj.Answer),
 		Plugin: strings.TrimSpace(obj.Plugin),
+		Tool:   strings.TrimSpace(obj.Tool),
 		Args:   obj.Args,
 		Reason: strings.TrimSpace(obj.Reason),
 	}, nil

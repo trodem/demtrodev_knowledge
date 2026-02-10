@@ -278,7 +278,8 @@ func parseLegacyAskArgs(args []string) (agent.AskOptions, bool, string, error) {
 
 func runAskOnce(baseDir, prompt string, opts agent.AskOptions, confirmTools bool) int {
 	catalog := buildPluginCatalog(baseDir)
-	decision, err := agent.DecideWithPlugins(prompt, catalog, opts)
+	toolsCatalog := buildToolsCatalog()
+	decision, err := agent.DecideWithPlugins(prompt, catalog, toolsCatalog, opts)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return 1
@@ -306,7 +307,7 @@ func runAskOnce(baseDir, prompt string, opts agent.AskOptions, confirmTools bool
 		fmt.Println()
 		if confirmTools {
 			reader := bufio.NewReader(os.Stdin)
-			fmt.Print(ui.Prompt("Confirm plugin execution? [y/N]: "))
+			fmt.Print(ui.Prompt("Confirm agent action? [y/N]: "))
 			confirm := strings.ToLower(strings.TrimSpace(readLine(reader)))
 			if confirm != "y" && confirm != "yes" {
 				fmt.Println(ui.Warn("Canceled."))
@@ -319,6 +320,44 @@ func runAskOnce(baseDir, prompt string, opts agent.AskOptions, confirmTools bool
 		if err := plugins.Run(baseDir, decision.Plugin, decision.Args); err != nil {
 			fmt.Println("Error:", err)
 			return 1
+		}
+		if strings.TrimSpace(decision.Answer) != "" {
+			fmt.Println(decision.Answer)
+		}
+		return 0
+	}
+	if decision.Action == "run_tool" {
+		toolName := strings.TrimSpace(decision.Tool)
+		if toolName == "" {
+			fmt.Println("Error: agent selected run_tool without tool name")
+			return 1
+		}
+		if !isKnownTool(toolName) {
+			fmt.Println("Error: agent selected unknown tool:", toolName)
+			if strings.TrimSpace(decision.Answer) != "" {
+				fmt.Println(decision.Answer)
+			}
+			return 1
+		}
+		if strings.TrimSpace(decision.Reason) != "" {
+			fmt.Println("Reason:", decision.Reason)
+		}
+		fmt.Println("Running tool:", toolName)
+		if confirmTools {
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Print(ui.Prompt("Confirm agent action? [y/N]: "))
+			confirm := strings.ToLower(strings.TrimSpace(readLine(reader)))
+			if confirm != "y" && confirm != "yes" {
+				fmt.Println(ui.Warn("Canceled."))
+				if strings.TrimSpace(decision.Answer) != "" {
+					fmt.Println(decision.Answer)
+				}
+				return 0
+			}
+		}
+		code := tools.RunByName(baseDir, toolName)
+		if code != 0 {
+			return code
 		}
 		if strings.TrimSpace(decision.Answer) != "" {
 			fmt.Println(decision.Answer)
@@ -369,6 +408,27 @@ func buildPluginCatalog(baseDir string) string {
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+func buildToolsCatalog() string {
+	return strings.Join([]string{
+		"- search: Search files by name/extension",
+		"- rename: Batch rename files with preview",
+		"- note: Append a quick note to a file",
+		"- recent: Show recent files",
+		"- backup: Create a folder zip backup",
+		"- clean: Delete empty folders",
+		"- system: Show system/network snapshot",
+	}, "\n")
+}
+
+func isKnownTool(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "search", "s", "rename", "r", "note", "n", "recent", "rec", "e", "backup", "b", "clean", "c", "system", "sys", "htop", "y":
+		return true
+	default:
+		return false
+	}
 }
 
 func runValidate(baseDir string, cfg config.Config) int {

@@ -161,7 +161,7 @@ Runtime overrides:
 - `--provider auto|ollama|openai` (default `auto`)
 - `--model <name>` (override model for selected provider)
 - `--base-url <url>` (override provider base URL)
-- `--confirm-tools` (ask confirmation before running plugin/function selected by the agent)
+- `--confirm-tools` (ask confirmation before running plugin/function/tool selected by the agent)
 
 Interactive mode:
 - `dm ask` opens a persistent ask prompt
@@ -174,6 +174,10 @@ Plugin tool-use:
 - the agent receives the full plugin/function catalog
 - when useful it can choose `run_plugin` and `dm` will execute that plugin/function
 - plugin execution is shown in output with selected plugin name and args
+
+Tools tool-use:
+- the agent also receives the tools catalog (`search`, `rename`, `note`, `recent`, `backup`, `clean`, `system`)
+- when useful it can choose `run_tool` and `dm` will execute that tool flow
 
 Safe execution example:
 ```bash
