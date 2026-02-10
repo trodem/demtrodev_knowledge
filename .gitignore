@@ -1,3 +1,4 @@
 dist/*
 !dist/.gitkeep
 *.cache.json
+*.agent.json
