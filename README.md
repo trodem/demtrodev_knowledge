@@ -161,7 +161,8 @@ Runtime overrides:
 - `--provider auto|ollama|openai` (default `auto`)
 - `--model <name>` (override model for selected provider)
 - `--base-url <url>` (override provider base URL)
-- `--confirm-tools` (ask confirmation before running plugin/function/tool selected by the agent)
+- `--confirm-tools` (default `true`, ask confirmation before running plugin/function/tool selected by the agent)
+- `--no-confirm-tools` (disable confirmation)
 
 Interactive mode:
 - `dm ask` opens a persistent ask prompt
@@ -178,6 +179,16 @@ Plugin tool-use:
 Tools tool-use:
 - the agent also receives the tools catalog (`search`, `rename`, `note`, `recent`, `backup`, `clean`, `system`)
 - when useful it can choose `run_tool` and `dm` will execute that tool flow
+- for `search`, the agent can pass non-interactive params (`base`, `ext`, `name`, `sort`, `limit`)
+- for `recent`, the agent can pass non-interactive params (`base`, `limit`)
+- for `clean`, the agent can pass non-interactive params (`base`, `apply`)
+
+Example:
+```bash
+dm ask "devo cercare file pdf nella cartella Downloads"
+dm ask "mostrami i 30 file piu recenti in Desktop"
+dm ask --confirm-tools "pulisci le cartelle vuote in Downloads"
+```
 
 Safe execution example:
 ```bash

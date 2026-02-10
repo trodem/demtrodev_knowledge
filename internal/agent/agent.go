@@ -52,6 +52,7 @@ type DecisionResult struct {
 	Answer   string
 	Plugin   string
 	Tool     string
+	ToolArgs map[string]string
 	Args     []string
 	Reason   string
 	Provider string
@@ -132,7 +133,7 @@ func DecideWithPlugins(userPrompt string, pluginCatalog string, toolCatalog stri
 		"Return ONLY valid JSON with this schema:",
 		`{"action":"answer","answer":"text"}`,
 		`or {"action":"run_plugin","plugin":"name","args":["arg1"],"reason":"why","answer":"optional text before/after run"}`,
-		`or {"action":"run_tool","tool":"name","reason":"why","answer":"optional text before/after run"}`,
+		`or {"action":"run_tool","tool":"name","tool_args":{"key":"value"},"reason":"why","answer":"optional text before/after run"}`,
 		"",
 		"Rules:",
 		"- action must be answer, run_plugin, or run_tool",
@@ -140,6 +141,9 @@ func DecideWithPlugins(userPrompt string, pluginCatalog string, toolCatalog stri
 		"- if run_tool, tool must be one of the available tools",
 		"- do not invent plugin names",
 		"- do not invent tool names",
+		"- for search tool prefer tool_args keys: base, ext, name, sort, limit",
+		"- for recent tool prefer tool_args keys: base, limit",
+		"- for clean tool prefer tool_args keys: base, apply",
 		"",
 		"User request:",
 		p,
@@ -183,23 +187,41 @@ func parseDecisionJSON(text string) (DecisionResult, error) {
 		payload = m
 	}
 	var obj struct {
-		Action string   `json:"action"`
-		Answer string   `json:"answer"`
-		Plugin string   `json:"plugin"`
-		Tool   string   `json:"tool"`
-		Args   []string `json:"args"`
-		Reason string   `json:"reason"`
+		Action   string         `json:"action"`
+		Answer   string         `json:"answer"`
+		Plugin   string         `json:"plugin"`
+		Tool     string         `json:"tool"`
+		ToolArgs map[string]any `json:"tool_args"`
+		Args     []string       `json:"args"`
+		Reason   string         `json:"reason"`
 	}
 	if err := json.Unmarshal([]byte(payload), &obj); err != nil {
 		return DecisionResult{}, err
 	}
+	toolArgs := map[string]string{}
+	for k, v := range obj.ToolArgs {
+		key := strings.TrimSpace(k)
+		if key == "" {
+			continue
+		}
+		if v == nil {
+			continue
+		}
+		val := strings.TrimSpace(fmt.Sprint(v))
+		lc := strings.ToLower(val)
+		if val == "" || lc == "<nil>" || lc == "null" {
+			continue
+		}
+		toolArgs[key] = val
+	}
 	return DecisionResult{
-		Action: strings.ToLower(strings.TrimSpace(obj.Action)),
-		Answer: strings.TrimSpace(obj.Answer),
-		Plugin: strings.TrimSpace(obj.Plugin),
-		Tool:   strings.TrimSpace(obj.Tool),
-		Args:   obj.Args,
-		Reason: strings.TrimSpace(obj.Reason),
+		Action:   strings.ToLower(strings.TrimSpace(obj.Action)),
+		Answer:   strings.TrimSpace(obj.Answer),
+		Plugin:   strings.TrimSpace(obj.Plugin),
+		Tool:     strings.TrimSpace(obj.Tool),
+		ToolArgs: toolArgs,
+		Args:     obj.Args,
+		Reason:   strings.TrimSpace(obj.Reason),
 	}, nil
 }
 

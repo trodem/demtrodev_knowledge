@@ -39,6 +39,25 @@ func RunRecent(r *bufio.Reader) int {
 		return 1
 	}
 
+	return runRecentQuery(base, limit)
+}
+
+func RunRecentAuto(baseDir string, params map[string]string) int {
+	base := strings.TrimSpace(params["base"])
+	if base == "" {
+		base = currentWorkingDir(baseDir)
+	}
+	base = normalizeAgentPath(base, baseDir)
+	limit := 20
+	if rawLimit := strings.TrimSpace(params["limit"]); rawLimit != "" {
+		if n, err := strconv.Atoi(rawLimit); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	return runRecentQuery(base, limit)
+}
+
+func runRecentQuery(base string, limit int) int {
 	items, err := collectRecent(base)
 	if err != nil {
 		fmt.Println("Error:", err)

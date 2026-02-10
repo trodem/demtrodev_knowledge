@@ -24,19 +24,12 @@ func RunCleanEmpty(r *bufio.Reader) int {
 		return 1
 	}
 
-	dirs, err := findEmptyDirs(base)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return 1
+	dirs, code := showEmptyDirs(base)
+	if code != 0 {
+		return code
 	}
 	if len(dirs) == 0 {
-		fmt.Println("No empty folders found.")
 		return 0
-	}
-
-	fmt.Println("\nEmpty folders:")
-	for _, d := range dirs {
-		fmt.Println(d)
 	}
 
 	confirm := prompt(r, "Delete these folders? [y/N]", "N")
@@ -45,6 +38,48 @@ func RunCleanEmpty(r *bufio.Reader) int {
 		return 0
 	}
 
+	return removeEmptyDirs(dirs)
+}
+
+func RunCleanEmptyAuto(baseDir string, params map[string]string) int {
+	base := strings.TrimSpace(params["base"])
+	if base == "" {
+		base = currentWorkingDir(baseDir)
+	}
+	base = normalizeAgentPath(base, baseDir)
+	dirs, code := showEmptyDirs(base)
+	if code != 0 {
+		return code
+	}
+	if len(dirs) == 0 {
+		return 0
+	}
+	apply := strings.ToLower(strings.TrimSpace(params["apply"]))
+	if apply != "1" && apply != "true" && apply != "yes" && apply != "y" {
+		fmt.Println(ui.Muted("Preview only. Set tool_args.apply=true to delete."))
+		return 0
+	}
+	return removeEmptyDirs(dirs)
+}
+
+func showEmptyDirs(base string) ([]string, int) {
+	dirs, err := findEmptyDirs(base)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil, 1
+	}
+	if len(dirs) == 0 {
+		fmt.Println("No empty folders found.")
+		return nil, 0
+	}
+	fmt.Println("\nEmpty folders:")
+	for _, d := range dirs {
+		fmt.Println(d)
+	}
+	return dirs, 0
+}
+
+func removeEmptyDirs(dirs []string) int {
 	for _, d := range dirs {
 		_ = os.Remove(d)
 	}

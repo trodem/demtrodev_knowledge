@@ -245,7 +245,7 @@ func parseFlags(args []string) (flags, []string) {
 
 func parseLegacyAskArgs(args []string) (agent.AskOptions, bool, string, error) {
 	var opts agent.AskOptions
-	var confirmTools bool
+	confirmTools := true
 	var promptParts []string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -269,6 +269,8 @@ func parseLegacyAskArgs(args []string) (agent.AskOptions, bool, string, error) {
 			i++
 		case "--confirm-tools":
 			confirmTools = true
+		case "--no-confirm-tools":
+			confirmTools = false
 		default:
 			promptParts = append(promptParts, args[i])
 		}
@@ -343,6 +345,9 @@ func runAskOnce(baseDir, prompt string, opts agent.AskOptions, confirmTools bool
 			fmt.Println("Reason:", decision.Reason)
 		}
 		fmt.Println("Running tool:", toolName)
+		if len(decision.ToolArgs) > 0 {
+			fmt.Println("Tool args:", formatToolArgs(decision.ToolArgs))
+		}
 		if confirmTools {
 			reader := bufio.NewReader(os.Stdin)
 			fmt.Print(ui.Prompt("Confirm agent action? [y/N]: "))
@@ -355,7 +360,7 @@ func runAskOnce(baseDir, prompt string, opts agent.AskOptions, confirmTools bool
 				return 0
 			}
 		}
-		code := tools.RunByName(baseDir, toolName)
+		code := tools.RunByNameWithParams(baseDir, toolName, decision.ToolArgs)
 		if code != 0 {
 			return code
 		}
@@ -412,12 +417,12 @@ func buildPluginCatalog(baseDir string) string {
 
 func buildToolsCatalog() string {
 	return strings.Join([]string{
-		"- search: Search files by name/extension",
+		"- search: Search files by name/extension | tool_args: base, ext, name, sort, limit",
 		"- rename: Batch rename files with preview",
 		"- note: Append a quick note to a file",
-		"- recent: Show recent files",
+		"- recent: Show recent files | tool_args: base, limit",
 		"- backup: Create a folder zip backup",
-		"- clean: Delete empty folders",
+		"- clean: Delete empty folders | tool_args: base, apply (true for delete, otherwise preview)",
 		"- system: Show system/network snapshot",
 	}, "\n")
 }
@@ -429,6 +434,30 @@ func isKnownTool(name string) bool {
 	default:
 		return false
 	}
+}
+
+func formatToolArgs(args map[string]string) string {
+	if len(args) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(args))
+	for k := range args {
+		v := strings.TrimSpace(args[k])
+		lc := strings.ToLower(v)
+		if v == "" || lc == "<nil>" || lc == "null" {
+			continue
+		}
+		keys = append(keys, k)
+	}
+	if len(keys) == 0 {
+		return ""
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%s", k, args[k]))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func runValidate(baseDir string, cfg config.Config) int {

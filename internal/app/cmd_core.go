@@ -185,6 +185,7 @@ func addCobraSubcommands(root *cobra.Command, opts *flags) {
 	var askModel string
 	var askBaseURL string
 	var askConfirmTools bool
+	var askNoConfirmTools bool
 	askCmd := &cobra.Command{
 		Use:   "ask <prompt...>",
 		Short: "Ask AI (Ollama first, OpenAI fallback)",
@@ -197,18 +198,22 @@ func addCobraSubcommands(root *cobra.Command, opts *flags) {
 				Model:    askModel,
 				BaseURL:  askBaseURL,
 			}
+			confirmTools := askConfirmTools
+			if askNoConfirmTools {
+				confirmTools = false
+			}
 			rt, err := loadRuntime(*opts)
 			if err != nil {
 				return err
 			}
 			if len(args) == 0 {
-				code := runAskInteractive(rt.BaseDir, askOpts, askConfirmTools)
+				code := runAskInteractive(rt.BaseDir, askOpts, confirmTools)
 				if code != 0 {
 					return exitCodeError{code: code}
 				}
 				return nil
 			}
-			code := runAskOnce(rt.BaseDir, strings.Join(args, " "), askOpts, askConfirmTools)
+			code := runAskOnce(rt.BaseDir, strings.Join(args, " "), askOpts, confirmTools)
 			if code != 0 {
 				return exitCodeError{code: code}
 			}
@@ -218,7 +223,8 @@ func addCobraSubcommands(root *cobra.Command, opts *flags) {
 	askCmd.Flags().StringVar(&askProvider, "provider", "auto", "provider: auto|ollama|openai")
 	askCmd.Flags().StringVar(&askModel, "model", "", "override model for selected provider")
 	askCmd.Flags().StringVar(&askBaseURL, "base-url", "", "override base URL for selected provider")
-	askCmd.Flags().BoolVar(&askConfirmTools, "confirm-tools", false, "ask confirmation before agent runs a plugin/function")
+	askCmd.Flags().BoolVar(&askConfirmTools, "confirm-tools", true, "ask confirmation before agent runs a plugin/function/tool")
+	askCmd.Flags().BoolVar(&askNoConfirmTools, "no-confirm-tools", false, "disable confirmation before agent actions")
 	root.AddCommand(askCmd)
 }
 

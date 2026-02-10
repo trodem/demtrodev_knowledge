@@ -72,6 +72,19 @@ func RunByName(baseDir, name string) int {
 	return RunByNameWithReader(baseDir, name, bufio.NewReader(os.Stdin))
 }
 
+func RunByNameWithParams(baseDir, name string, params map[string]string) int {
+	switch normalizeToolName(name) {
+	case "search":
+		return RunSearchAuto(baseDir, params)
+	case "recent":
+		return RunRecentAuto(baseDir, params)
+	case "clean":
+		return RunCleanEmptyAuto(baseDir, params)
+	default:
+		return RunByName(baseDir, name)
+	}
+}
+
 func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
 	switch normalizeToolName(name) {
 	case "search":
