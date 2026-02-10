@@ -89,7 +89,7 @@ func RunSearchAutoDetailed(baseDir string, params map[string]string) AutoRunResu
 			offset = n
 		}
 	}
-	shown, total, code := runSearchQuery(base, name, ext, sortBy, offset, limit)
+	shown, total, code := runSearchQuery(base, name, ext, sortBy, offset, limit, true)
 	if code != 0 {
 		return AutoRunResult{Code: code}
 	}
@@ -108,7 +108,7 @@ func RunSearchAutoDetailed(baseDir string, params map[string]string) AutoRunResu
 	return AutoRunResult{Code: 0}
 }
 
-func runSearchQuery(base, name, ext, sortBy string, offset, limit int) (int, int, int) {
+func runSearchQuery(base, name, ext, sortBy string, offset, limit int, promptOpen bool) (int, int, int) {
 	results, err := filesearch.Find(filesearch.Options{
 		BasePath: base,
 		NamePart: name,
@@ -142,6 +142,9 @@ func runSearchQuery(base, name, ext, sortBy string, offset, limit int) (int, int
 		idx := ui.Warn(fmt.Sprintf("%2d)", offset+i+1))
 		fmt.Printf("%s %s | %s | %s\n", idx, item.ModTime.Format("2006-01-02 15:04"), filesearch.FormatSize(item.Size), item.Path)
 	}
+	if promptOpen {
+		promptOpenSelection(results, start, end)
+	}
 	if limit > 0 && len(results) > limit {
 		remaining := len(results) - end
 		if remaining > 0 {
@@ -149,6 +152,21 @@ func runSearchQuery(base, name, ext, sortBy string, offset, limit int) (int, int
 		}
 	}
 	return len(show), len(results), 0
+}
+
+func promptOpenSelection(results []filesearch.Result, start, end int) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(ui.Prompt("Open file from current page? [number/Enter skip]: "))
+	selection := strings.TrimSpace(readLine(reader))
+	if selection == "" {
+		return
+	}
+	n, err := strconv.Atoi(selection)
+	if err != nil || n < start || n > end {
+		fmt.Println(ui.Error("Invalid selection."))
+		return
+	}
+	platform.OpenFile(results[n-1].Path)
 }
 
 func normalizeAgentPath(raw, fallbackBaseDir string) string {
