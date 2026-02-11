@@ -411,13 +411,21 @@ func runAskOnce(baseDir, prompt string, opts agent.AskOptions, confirmTools bool
 }
 
 func runAskInteractive(baseDir string, opts agent.AskOptions, confirmTools bool) int {
+	session, err := agent.ResolveSessionProvider(opts)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return 1
+	}
+	sessionOpts := session.Options
+	promptLabel := fmt.Sprintf("ask(%s,%s)> ", session.Provider, session.Model)
+
 	fmt.Println("Ask mode. Type your question.")
 	fmt.Println("Exit commands: /exit, exit, quit")
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Print("ask> ")
-		line, err := reader.ReadString('\n')
-		if err != nil && strings.TrimSpace(line) == "" {
+		fmt.Print(ui.Warn(promptLabel))
+		line, readErr := reader.ReadString('\n')
+		if readErr != nil && strings.TrimSpace(line) == "" {
 			fmt.Println()
 			return 0
 		}
@@ -428,7 +436,7 @@ func runAskInteractive(baseDir string, opts agent.AskOptions, confirmTools bool)
 		case "/exit", "exit", "quit":
 			return 0
 		}
-		_ = runAskOnce(baseDir, prompt, opts, confirmTools)
+		_ = runAskOnce(baseDir, prompt, sessionOpts, confirmTools)
 	}
 }
 

@@ -169,6 +169,8 @@ Runtime overrides:
 Interactive mode:
 - `dm ask` opens a persistent ask prompt
 - It exits only with explicit commands: `/exit`, `exit`, `quit`
+- At startup, `dm ask` resolves provider once (Ollama first, OpenAI fallback) and keeps a fixed prompt for the session: `ask(provider,model)>`
+- The interactive prompt label is highlighted in yellow
 
 Response header:
 - each answer prints `[provider | model]` before the text

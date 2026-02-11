@@ -47,6 +47,12 @@ type AskResult struct {
 	Model    string
 }
 
+type SessionProvider struct {
+	Provider string
+	Model    string
+	Options  AskOptions
+}
+
 type DecisionResult struct {
 	Action   string
 	Answer   string
@@ -107,6 +113,74 @@ func AskWithOptions(prompt string, opts AskOptions) (AskResult, error) {
 		return AskResult{Text: answer, Provider: "openai", Model: model}, nil
 	default:
 		return AskResult{}, fmt.Errorf("invalid provider %q (use auto|ollama|openai)", opts.Provider)
+	}
+}
+
+func ResolveSessionProvider(opts AskOptions) (SessionProvider, error) {
+	cfg, _ := loadUserConfig()
+	applyOllamaOverrides(&cfg, opts)
+	applyOpenAIOverrides(&cfg, opts)
+
+	ollamaBase, ollamaModel := resolvedOllama(cfg)
+	openAIBase, openAIModel, openAIKey := resolvedOpenAI(cfg)
+	reqProvider := strings.ToLower(strings.TrimSpace(opts.Provider))
+	if reqProvider == "" {
+		reqProvider = "auto"
+	}
+
+	switch reqProvider {
+	case "ollama":
+		if err := pingOllama(ollamaBase); err != nil {
+			return SessionProvider{}, fmt.Errorf("ollama unavailable: %w", err)
+		}
+		return SessionProvider{
+			Provider: "ollama",
+			Model:    ollamaModel,
+			Options: AskOptions{
+				Provider: "ollama",
+				Model:    ollamaModel,
+				BaseURL:  ollamaBase,
+			},
+		}, nil
+	case "openai":
+		if strings.TrimSpace(openAIKey) == "" {
+			return SessionProvider{}, fmt.Errorf("missing OpenAI API key (set in %s or OPENAI_API_KEY)", configPath())
+		}
+		return SessionProvider{
+			Provider: "openai",
+			Model:    openAIModel,
+			Options: AskOptions{
+				Provider: "openai",
+				Model:    openAIModel,
+				BaseURL:  openAIBase,
+			},
+		}, nil
+	case "auto":
+		if err := pingOllama(ollamaBase); err == nil {
+			return SessionProvider{
+				Provider: "ollama",
+				Model:    ollamaModel,
+				Options: AskOptions{
+					Provider: "ollama",
+					Model:    ollamaModel,
+					BaseURL:  ollamaBase,
+				},
+			}, nil
+		}
+		if strings.TrimSpace(openAIKey) == "" {
+			return SessionProvider{}, fmt.Errorf("ollama unavailable and OpenAI API key is missing")
+		}
+		return SessionProvider{
+			Provider: "openai",
+			Model:    openAIModel,
+			Options: AskOptions{
+				Provider: "openai",
+				Model:    openAIModel,
+				BaseURL:  openAIBase,
+			},
+		}, nil
+	default:
+		return SessionProvider{}, fmt.Errorf("invalid provider %q (use auto|ollama|openai)", opts.Provider)
 	}
 }
 
@@ -293,14 +367,7 @@ func configPathNearExecutable() string {
 }
 
 func askOllama(prompt string, cfg ollamaConfig) (string, string, error) {
-	baseURL := strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
-	if baseURL == "" {
-		baseURL = defaultOllamaBaseURL
-	}
-	model := strings.TrimSpace(cfg.Model)
-	if model == "" {
-		model = defaultOllamaModel
-	}
+	baseURL, model := normalizedOllamaValues(cfg)
 
 	reqBody := map[string]any{
 		"model":  model,
@@ -339,21 +406,9 @@ func askOllama(prompt string, cfg ollamaConfig) (string, string, error) {
 }
 
 func askOpenAI(prompt string, cfg openAIConfig) (string, string, error) {
-	apiKey := strings.TrimSpace(cfg.APIKey)
-	if apiKey == "" {
-		apiKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
-	}
+	baseURL, model, apiKey := normalizedOpenAIValues(cfg)
 	if apiKey == "" {
 		return "", "", fmt.Errorf("missing OpenAI API key (set in %s or OPENAI_API_KEY)", configPath())
-	}
-
-	baseURL := strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
-	if baseURL == "" {
-		baseURL = defaultOpenAIBaseURL
-	}
-	model := strings.TrimSpace(cfg.Model)
-	if model == "" {
-		model = defaultOpenAIModel
 	}
 
 	reqBody := map[string]any{
@@ -401,4 +456,54 @@ func askOpenAI(prompt string, cfg openAIConfig) (string, string, error) {
 		return "", model, fmt.Errorf("empty openai content")
 	}
 	return answer, model, nil
+}
+
+func resolvedOllama(cfg userConfig) (string, string) {
+	return normalizedOllamaValues(cfg.Ollama)
+}
+
+func resolvedOpenAI(cfg userConfig) (string, string, string) {
+	return normalizedOpenAIValues(cfg.OpenAI)
+}
+
+func normalizedOllamaValues(cfg ollamaConfig) (string, string) {
+	baseURL := strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
+	if baseURL == "" {
+		baseURL = defaultOllamaBaseURL
+	}
+	model := strings.TrimSpace(cfg.Model)
+	if model == "" {
+		model = defaultOllamaModel
+	}
+	return baseURL, model
+}
+
+func normalizedOpenAIValues(cfg openAIConfig) (string, string, string) {
+	apiKey := strings.TrimSpace(cfg.APIKey)
+	if apiKey == "" {
+		apiKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+	}
+	baseURL := strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
+	if baseURL == "" {
+		baseURL = defaultOpenAIBaseURL
+	}
+	model := strings.TrimSpace(cfg.Model)
+	if model == "" {
+		model = defaultOpenAIModel
+	}
+	return baseURL, model, apiKey
+}
+
+func pingOllama(baseURL string) error {
+	u := strings.TrimRight(strings.TrimSpace(baseURL), "/") + "/api/tags"
+	client := &http.Client{Timeout: 3 * time.Second}
+	res, err := client.Get(u)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return fmt.Errorf("status %s", res.Status)
+	}
+	return nil
 }
