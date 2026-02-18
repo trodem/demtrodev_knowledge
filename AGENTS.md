@@ -12,6 +12,7 @@ Repository guidelines for automated agents.
 - Core logic: `internal/`
 - Tools: `tools/` (interactive utilities)
 - CLI command wiring: `internal/app/` (Cobra-based)
+  - keep command flows split by concern (for example `ask.go`, `plugin_menu.go`, `profile_ops.go`)
 - Config files:
   - `dm.json` (optional root includes)
   - `config/*.json` (optional included fragments)
@@ -33,6 +34,10 @@ Repository guidelines for automated agents.
 ## Testing
 - If you add parsing logic, add unit tests in the same package.
 - If you add or change Cobra commands/flags, update tests in `internal/app/`.
+- For performance-sensitive changes, add or update benchmarks where applicable:
+  - `go test ./tools -run ^$ -bench Benchmark -benchmem`
+  - `go test ./internal/plugins -run ^$ -bench Benchmark -benchmem`
+  - optional real-path benchmark input via `DM_BENCH_BASE` (and optional `DM_BENCH_NAME`, `DM_BENCH_EXT`)
 
 ## CLI Conventions
 - Use Cobra native help/usage output; do not add custom global help printers.
@@ -105,6 +110,7 @@ Repository guidelines for automated agents.
 
 ## Output
 - CLI output should remain human-friendly and minimal.
+- Splash should show `Version`, executable build time, and current time.
 
 ## Documentation
 - Update `README.md` when behavior, configuration, or structure changes.
