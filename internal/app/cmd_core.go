@@ -153,6 +153,7 @@ func addCobraSubcommands(root *cobra.Command, opts *flags) {
 	})
 	root.AddCommand(newPluginCommand(opts))
 	root.AddCommand(newToolsCommand(opts))
+	root.AddCommand(newToolkitCommand(opts))
 	root.AddCommand(&cobra.Command{
 		Use:   "run <alias>",
 		Short: "Run alias from config",

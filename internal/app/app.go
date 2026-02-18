@@ -531,7 +531,7 @@ func runPlugin(baseDir string, args []string) int {
 
 func suggestTopLevelName(baseDir string, cfg config.Config, input string) string {
 	candidates := []string{
-		"aliases", "config", "ps_profile", "cp", "open", "list", "add", "validate", "doctor", "plugins", "tools", "run",
+		"aliases", "config", "ps_profile", "cp", "open", "list", "add", "validate", "doctor", "plugins", "tools", "toolkit", "run",
 	}
 	for k := range cfg.Jump {
 		candidates = append(candidates, k)
