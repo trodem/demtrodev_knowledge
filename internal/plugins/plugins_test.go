@@ -6,7 +6,15 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 )
+
+func clearPluginCacheForTest() {
+	cacheMu.Lock()
+	entryListCache = map[string]entryListCacheValue{}
+	entryInfoCache = map[string]entryInfoCacheValue{}
+	cacheMu.Unlock()
+}
 
 func TestRunNotFound(t *testing.T) {
 	baseDir := t.TempDir()
@@ -96,6 +104,7 @@ func TestCollectPowerShellFunctionsFromMultipleFiles(t *testing.T) {
 }
 
 func TestListEntriesIncludesFunctions(t *testing.T) {
+	clearPluginCacheForTest()
 	baseDir := t.TempDir()
 	pluginsDir := filepath.Join(baseDir, "plugins")
 	if err := os.MkdirAll(pluginsDir, 0o755); err != nil {
@@ -127,7 +136,38 @@ func TestListEntriesIncludesFunctions(t *testing.T) {
 	}
 }
 
+func TestListEntriesCacheInvalidatesOnDirChange(t *testing.T) {
+	clearPluginCacheForTest()
+	baseDir := t.TempDir()
+	pluginsDir := filepath.Join(baseDir, "plugins")
+	if err := os.MkdirAll(pluginsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pluginsDir, "one.ps1"), []byte("Write-Host one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	items, err := ListEntries(baseDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(items))
+	}
+	time.Sleep(5 * time.Millisecond)
+	if err := os.WriteFile(filepath.Join(pluginsDir, "two.ps1"), []byte("Write-Host two"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	items, err = ListEntries(baseDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected cache invalidation and 2 entries, got %d", len(items))
+	}
+}
+
 func TestGetInfoForFunctionWithCommentHelp(t *testing.T) {
+	clearPluginCacheForTest()
 	baseDir := t.TempDir()
 	pluginsDir := filepath.Join(baseDir, "plugins")
 	if err := os.MkdirAll(pluginsDir, 0o755); err != nil {
@@ -150,6 +190,39 @@ func TestGetInfoForFunctionWithCommentHelp(t *testing.T) {
 	}
 	if len(info.Parameters) == 0 || len(info.Examples) == 0 {
 		t.Fatalf("expected parameters and examples, got %+v", info)
+	}
+}
+
+func TestGetInfoCacheInvalidatesOnSourceChange(t *testing.T) {
+	clearPluginCacheForTest()
+	baseDir := t.TempDir()
+	pluginsDir := filepath.Join(baseDir, "plugins")
+	if err := os.MkdirAll(pluginsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(pluginsDir, "stibs.ps1")
+	v1 := "<#\n.SYNOPSIS\nFirst synopsis\n#>\nfunction restart_backend {\n}\n"
+	if err := os.WriteFile(path, []byte(v1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	info, err := GetInfo(baseDir, "restart_backend")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Synopsis != "First synopsis" {
+		t.Fatalf("unexpected synopsis: %q", info.Synopsis)
+	}
+	time.Sleep(5 * time.Millisecond)
+	v2 := "<#\n.SYNOPSIS\nSecond synopsis\n#>\nfunction restart_backend {\n}\n"
+	if err := os.WriteFile(path, []byte(v2), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	info, err = GetInfo(baseDir, "restart_backend")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Synopsis != "Second synopsis" {
+		t.Fatalf("expected updated synopsis, got %q", info.Synopsis)
 	}
 }
 

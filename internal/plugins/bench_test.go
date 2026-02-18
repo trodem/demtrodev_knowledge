@@ -29,8 +29,8 @@ func benchmarkPluginDataset(b *testing.B, files, funcsPerFile int) string {
 
 func clearPluginBenchCache() {
 	cacheMu.Lock()
-	entryListCache = map[string][]Entry{}
-	entryInfoCache = map[string]Info{}
+	entryListCache = map[string]entryListCacheValue{}
+	entryInfoCache = map[string]entryInfoCacheValue{}
 	cacheMu.Unlock()
 }
 

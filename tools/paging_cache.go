@@ -28,10 +28,11 @@ var (
 	pagingCacheMu   sync.Mutex
 	searchPageCache = map[string]searchPageCacheEntry{}
 	recentPageCache = map[string]recentPageCacheEntry{}
+	nowFunc         = time.Now
 )
 
 func getOrLoadSearchPageResults(key string, loader func() ([]filesearch.Result, error)) ([]filesearch.Result, error) {
-	now := time.Now()
+	now := nowFunc()
 	pagingCacheMu.Lock()
 	if entry, ok := searchPageCache[key]; ok && now.Sub(entry.Stored) <= pagingCacheTTL {
 		entry.LastUse = now
@@ -62,7 +63,7 @@ func getOrLoadSearchPageResults(key string, loader func() ([]filesearch.Result, 
 }
 
 func getOrLoadRecentPageResults(key string, loader func() ([]recentItem, error)) ([]recentItem, error) {
-	now := time.Now()
+	now := nowFunc()
 	pagingCacheMu.Lock()
 	if entry, ok := recentPageCache[key]; ok && now.Sub(entry.Stored) <= pagingCacheTTL {
 		entry.LastUse = now
@@ -90,6 +91,13 @@ func getOrLoadRecentPageResults(key string, loader func() ([]recentItem, error))
 	pruneRecentPageCache()
 	pagingCacheMu.Unlock()
 	return out, nil
+}
+
+func resetPagingCachesForTest() {
+	pagingCacheMu.Lock()
+	searchPageCache = map[string]searchPageCacheEntry{}
+	recentPageCache = map[string]recentPageCacheEntry{}
+	pagingCacheMu.Unlock()
 }
 
 func pruneSearchPageCache() {

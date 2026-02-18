@@ -79,11 +79,12 @@ func ListEntries(baseDir string, includeFunctions bool) ([]Entry, error) {
 	if cached, ok := getCachedEntryList(cacheKey); ok {
 		return cached, nil
 	}
+	dirStamp := statStamp(dir)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			out := []Entry{}
-			setCachedEntryList(cacheKey, out)
+			setCachedEntryList(cacheKey, dir, out, dirStamp, map[string]int64{})
 			return out, nil
 		}
 		return nil, err
@@ -130,7 +131,8 @@ func ListEntries(baseDir string, includeFunctions bool) ([]Entry, error) {
 		}
 		return out[i].Name < out[j].Name
 	})
-	setCachedEntryList(cacheKey, out)
+	stamps := buildEntryListFileStamps(out)
+	setCachedEntryList(cacheKey, dir, out, dirStamp, stamps)
 	return out, nil
 }
 
@@ -167,6 +169,7 @@ func GetInfo(baseDir, name string) (Info, error) {
 	if cached, ok := getCachedInfo(cacheKey); ok {
 		return cached, nil
 	}
+	dirStamp := statStamp(dir)
 
 	candidate, err := findPlugin(dir, name)
 	if err != nil {
@@ -180,7 +183,7 @@ func GetInfo(baseDir, name string) (Info, error) {
 			Sources: []string{candidate},
 			Runner:  runnerForPath(candidate),
 		}
-		setCachedInfo(cacheKey, out)
+		setCachedInfo(cacheKey, dir, out, dirStamp, buildInfoFileStamps(out))
 		return out, nil
 	}
 
@@ -209,8 +212,42 @@ func GetInfo(baseDir, name string) (Info, error) {
 		Parameters:  help.Parameters,
 		Examples:    help.Examples,
 	}
-	setCachedInfo(cacheKey, out)
+	setCachedInfo(cacheKey, dir, out, dirStamp, buildInfoFileStamps(out))
 	return out, nil
+}
+
+func buildEntryListFileStamps(items []Entry) map[string]int64 {
+	stamps := map[string]int64{}
+	for _, it := range items {
+		p := strings.TrimSpace(it.Path)
+		if p == "" {
+			continue
+		}
+		if _, seen := stamps[p]; seen {
+			continue
+		}
+		stamps[p] = statStamp(p)
+	}
+	return stamps
+}
+
+func buildInfoFileStamps(info Info) map[string]int64 {
+	stamps := map[string]int64{}
+	add := func(path string) {
+		p := strings.TrimSpace(path)
+		if p == "" {
+			return
+		}
+		if _, seen := stamps[p]; seen {
+			return
+		}
+		stamps[p] = statStamp(p)
+	}
+	add(info.Path)
+	for _, src := range info.Sources {
+		add(src)
+	}
+	return stamps
 }
 
 func Run(baseDir, name string, args []string) error {
