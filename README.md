@@ -370,6 +370,7 @@ Copy-Item dist/dm-toolkit-gen.exe plugins/dm-toolkit-gen.exe -Force
   - auto-detects repo root from current directory or executable location (use `--repo` to override)
   - can ensure shared helpers in `plugins/utils.ps1`
   - can ensure shared variables in `plugins/variables.ps1` (managed region `dm-toolkit-gen:variables`)
+- Quick reference: `docs/dm-toolkit-gen-cheatsheet.md`
 
 ## Project Layout
 ```
