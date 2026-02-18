@@ -75,10 +75,16 @@ func List(baseDir string) ([]Plugin, error) {
 
 func ListEntries(baseDir string, includeFunctions bool) ([]Entry, error) {
 	dir := filepath.Join(baseDir, "plugins")
+	cacheKey := listEntriesCacheKey(dir, includeFunctions)
+	if cached, ok := getCachedEntryList(cacheKey); ok {
+		return cached, nil
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []Entry{}, nil
+			out := []Entry{}
+			setCachedEntryList(cacheKey, out)
+			return out, nil
 		}
 		return nil, err
 	}
@@ -124,6 +130,7 @@ func ListEntries(baseDir string, includeFunctions bool) ([]Entry, error) {
 		}
 		return out[i].Name < out[j].Name
 	})
+	setCachedEntryList(cacheKey, out)
 	return out, nil
 }
 
@@ -156,19 +163,25 @@ func ListFunctionFiles(baseDir string) ([]FunctionFile, error) {
 
 func GetInfo(baseDir, name string) (Info, error) {
 	dir := filepath.Join(baseDir, "plugins")
+	cacheKey := infoCacheKey(dir, name)
+	if cached, ok := getCachedInfo(cacheKey); ok {
+		return cached, nil
+	}
 
 	candidate, err := findPlugin(dir, name)
 	if err != nil {
 		return Info{}, err
 	}
 	if candidate != "" {
-		return Info{
+		out := Info{
 			Name:    name,
 			Kind:    "script",
 			Path:    candidate,
 			Sources: []string{candidate},
 			Runner:  runnerForPath(candidate),
-		}, nil
+		}
+		setCachedInfo(cacheKey, out)
+		return out, nil
 	}
 
 	fnPath, loadFiles, found, err := findPowerShellFunction(dir, name)
@@ -185,7 +198,7 @@ func GetInfo(baseDir, name string) (Info, error) {
 		sources = []string{fnPath}
 	}
 
-	return Info{
+	out := Info{
 		Name:        name,
 		Kind:        "function",
 		Path:        fnPath,
@@ -195,7 +208,9 @@ func GetInfo(baseDir, name string) (Info, error) {
 		Description: help.Description,
 		Parameters:  help.Parameters,
 		Examples:    help.Examples,
-	}, nil
+	}
+	setCachedInfo(cacheKey, out)
+	return out, nil
 }
 
 func Run(baseDir, name string, args []string) error {

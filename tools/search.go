@@ -89,7 +89,20 @@ func RunSearchAutoDetailed(baseDir string, params map[string]string) AutoRunResu
 			offset = n
 		}
 	}
-	shown, total, code := runSearchQuery(base, name, ext, sortBy, offset, limit, true)
+	cacheKey := strings.ToLower(strings.Join([]string{base, name, ext, sortBy}, "|"))
+	results, err := getOrLoadSearchPageResults(cacheKey, func() ([]filesearch.Result, error) {
+		return filesearch.Find(filesearch.Options{
+			BasePath: base,
+			NamePart: name,
+			Ext:      ext,
+			SortBy:   sortBy,
+		})
+	})
+	if err != nil {
+		fmt.Println("Error:", err)
+		return AutoRunResult{Code: 1}
+	}
+	shown, total, code := runSearchQueryFromResults(results, offset, limit, true)
 	if code != 0 {
 		return AutoRunResult{Code: code}
 	}
@@ -119,6 +132,10 @@ func runSearchQuery(base, name, ext, sortBy string, offset, limit int, promptOpe
 		fmt.Println("Error:", err)
 		return 0, 0, 1
 	}
+	return runSearchQueryFromResults(results, offset, limit, promptOpen)
+}
+
+func runSearchQueryFromResults(results []filesearch.Result, offset, limit int, promptOpen bool) (int, int, int) {
 	if len(results) == 0 {
 		fmt.Println("No files found.")
 		return 0, 0, 0

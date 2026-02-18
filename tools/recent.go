@@ -65,7 +65,15 @@ func RunRecentAutoDetailed(baseDir string, params map[string]string) AutoRunResu
 			offset = n
 		}
 	}
-	shown, total, code := runRecentQuery(base, offset, limit)
+	cacheKey := strings.ToLower(strings.TrimSpace(base))
+	items, err := getOrLoadRecentPageResults(cacheKey, func() ([]recentItem, error) {
+		return collectRecentSorted(base)
+	})
+	if err != nil {
+		fmt.Println("Error:", err)
+		return AutoRunResult{Code: 1}
+	}
+	shown, total, code := runRecentPage(items, offset, limit)
 	if code != 0 {
 		return AutoRunResult{Code: code}
 	}
@@ -90,14 +98,17 @@ func runRecentQuery(base string, offset, limit int) (int, int, int) {
 		fmt.Println("Error:", err)
 		return 0, 0, 1
 	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].ModTime.After(items[j].ModTime)
+	})
+	return runRecentPage(items, offset, limit)
+}
+
+func runRecentPage(items []recentItem, offset, limit int) (int, int, int) {
 	if len(items) == 0 {
 		fmt.Println("No files found.")
 		return 0, 0, 0
 	}
-
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].ModTime.After(items[j].ModTime)
-	})
 	if offset < 0 {
 		offset = 0
 	}
@@ -120,6 +131,17 @@ func runRecentQuery(base string, offset, limit int) (int, int, int) {
 		fmt.Println(ui.Muted(fmt.Sprintf("... and %d more", len(items)-end)))
 	}
 	return len(show), len(items), 0
+}
+
+func collectRecentSorted(base string) ([]recentItem, error) {
+	items, err := collectRecent(base)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].ModTime.After(items[j].ModTime)
+	})
+	return items, nil
 }
 
 func collectRecent(base string) ([]recentItem, error) {
