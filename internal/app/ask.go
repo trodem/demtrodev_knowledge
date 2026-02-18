@@ -14,6 +14,16 @@ import (
 	"cli/tools"
 )
 
+const askMaxSteps = 4
+
+type askActionRecord struct {
+	Step   int
+	Action string
+	Target string
+	Args   string
+	Result string
+}
+
 func parseLegacyAskArgs(args []string) (agent.AskOptions, bool, string, error) {
 	var opts agent.AskOptions
 	confirmTools := true
@@ -52,112 +62,197 @@ func parseLegacyAskArgs(args []string) (agent.AskOptions, bool, string, error) {
 func runAskOnce(baseDir, prompt string, opts agent.AskOptions, confirmTools bool) int {
 	catalog := buildPluginCatalog(baseDir)
 	toolsCatalog := buildToolsCatalog()
-	decision, err := agent.DecideWithPlugins(prompt, catalog, toolsCatalog, opts)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return 1
-	}
-	fmt.Printf("[%s | %s]\n", decision.Provider, decision.Model)
-	if decision.Action == "run_plugin" {
-		if strings.TrimSpace(decision.Plugin) == "" {
-			fmt.Println("Error: agent selected run_plugin without plugin name")
+	history := []askActionRecord{}
+	lastSignature := ""
+	for step := 1; step <= askMaxSteps; step++ {
+		decisionPrompt := buildAskPlannerPrompt(prompt, history)
+		decision, err := agent.DecideWithPlugins(decisionPrompt, catalog, toolsCatalog, opts)
+		if err != nil {
+			fmt.Println("Error:", err)
 			return 1
 		}
-		if _, err := plugins.GetInfo(baseDir, decision.Plugin); err != nil {
-			fmt.Println("Error: agent selected unknown plugin:", decision.Plugin)
-			if strings.TrimSpace(decision.Answer) != "" {
-				fmt.Println(decision.Answer)
-			}
-			return 1
-		}
-		if strings.TrimSpace(decision.Reason) != "" {
-			fmt.Println("Reason:", decision.Reason)
-		}
-		fmt.Printf("Running plugin: %s", decision.Plugin)
-		if len(decision.Args) > 0 {
-			fmt.Printf(" %s", strings.Join(decision.Args, " "))
-		}
-		fmt.Println()
-		if confirmTools {
-			reader := bufio.NewReader(os.Stdin)
-			fmt.Print(ui.Prompt("Confirm agent action? [Y/n]: "))
-			confirm := strings.ToLower(strings.TrimSpace(readLine(reader)))
-			if confirm == "n" || confirm == "no" {
-				fmt.Println(ui.Warn("Canceled."))
-				if strings.TrimSpace(decision.Answer) != "" {
-					fmt.Println(decision.Answer)
-				}
-				return 0
-			}
-		}
-		if err := plugins.Run(baseDir, decision.Plugin, decision.Args); err != nil {
-			printAgentActionError(err)
-			return 1
-		}
-		if strings.TrimSpace(decision.Answer) != "" {
+		fmt.Printf("[%s | %s]\n", decision.Provider, decision.Model)
+
+		if decision.Action == "answer" || strings.TrimSpace(decision.Action) == "" {
 			fmt.Println(decision.Answer)
+			return 0
 		}
-		return 0
-	}
-	if decision.Action == "run_tool" {
-		toolName := strings.TrimSpace(decision.Tool)
-		if toolName == "" {
-			fmt.Println("Error: agent selected run_tool without tool name")
-			return 1
-		}
-		if !isKnownTool(toolName) {
-			fmt.Println("Error: agent selected unknown tool:", toolName)
+
+		sig := decisionSignature(decision)
+		if sig != "" && sig == lastSignature {
+			fmt.Println(ui.Warn("Agent repeated the same action; stopping to avoid loop."))
 			if strings.TrimSpace(decision.Answer) != "" {
 				fmt.Println(decision.Answer)
 			}
-			return 1
+			return 0
 		}
-		if strings.TrimSpace(decision.Reason) != "" {
-			fmt.Println("Reason:", decision.Reason)
-		}
-		fmt.Println("Running tool:", toolName)
-		if len(decision.ToolArgs) > 0 {
-			fmt.Println("Tool args:", formatToolArgs(decision.ToolArgs))
-		}
-		if confirmTools {
-			reader := bufio.NewReader(os.Stdin)
-			fmt.Print(ui.Prompt("Confirm agent action? [Y/n]: "))
-			confirm := strings.ToLower(strings.TrimSpace(readLine(reader)))
-			if confirm == "n" || confirm == "no" {
-				fmt.Println(ui.Warn("Canceled."))
+		lastSignature = sig
+
+		if decision.Action == "run_plugin" {
+			if strings.TrimSpace(decision.Plugin) == "" {
+				fmt.Println("Error: agent selected run_plugin without plugin name")
+				return 1
+			}
+			if _, err := plugins.GetInfo(baseDir, decision.Plugin); err != nil {
+				fmt.Println("Error: agent selected unknown plugin:", decision.Plugin)
 				if strings.TrimSpace(decision.Answer) != "" {
 					fmt.Println(decision.Answer)
 				}
+				return 1
+			}
+			if strings.TrimSpace(decision.Reason) != "" {
+				fmt.Println("Reason:", decision.Reason)
+			}
+			fmt.Printf("Running plugin: %s", decision.Plugin)
+			if len(decision.Args) > 0 {
+				fmt.Printf(" %s", strings.Join(decision.Args, " "))
+			}
+			fmt.Println()
+			if confirmTools {
+				reader := bufio.NewReader(os.Stdin)
+				fmt.Print(ui.Prompt("Confirm agent action? [Y/n]: "))
+				confirm := strings.ToLower(strings.TrimSpace(readLine(reader)))
+				if confirm == "n" || confirm == "no" {
+					fmt.Println(ui.Warn("Canceled."))
+					if strings.TrimSpace(decision.Answer) != "" {
+						fmt.Println(decision.Answer)
+					}
+					return 0
+				}
+			}
+			if err := plugins.Run(baseDir, decision.Plugin, decision.Args); err != nil {
+				printAgentActionError(err)
+				return 1
+			}
+			history = append(history, askActionRecord{
+				Step:   step,
+				Action: "run_plugin",
+				Target: decision.Plugin,
+				Args:   strings.Join(decision.Args, " "),
+				Result: "ok",
+			})
+			if strings.TrimSpace(decision.Answer) != "" {
+				fmt.Println(decision.Answer)
+			}
+			if step == askMaxSteps {
+				fmt.Println(ui.Warn("Reached max agent steps; stopping."))
 				return 0
 			}
+			continue
 		}
-		run := tools.RunByNameWithParamsDetailed(baseDir, toolName, decision.ToolArgs)
-		if run.Code != 0 {
-			return run.Code
-		}
-		reader := bufio.NewReader(os.Stdin)
-		for run.CanContinue {
-			promptText := run.ContinuePrompt
-			if strings.TrimSpace(promptText) == "" {
-				promptText = "Show more results? [Y/n]: "
+
+		if decision.Action == "run_tool" {
+			toolName := strings.TrimSpace(decision.Tool)
+			if toolName == "" {
+				fmt.Println("Error: agent selected run_tool without tool name")
+				return 1
 			}
-			fmt.Print(ui.Prompt(promptText))
-			nextChoice := strings.ToLower(strings.TrimSpace(readLine(reader)))
-			if nextChoice == "n" || nextChoice == "no" {
-				break
+			if !isKnownTool(toolName) {
+				fmt.Println("Error: agent selected unknown tool:", toolName)
+				if strings.TrimSpace(decision.Answer) != "" {
+					fmt.Println(decision.Answer)
+				}
+				return 1
 			}
-			run = tools.RunByNameWithParamsDetailed(baseDir, toolName, run.ContinueParams)
+			if strings.TrimSpace(decision.Reason) != "" {
+				fmt.Println("Reason:", decision.Reason)
+			}
+			fmt.Println("Running tool:", toolName)
+			if len(decision.ToolArgs) > 0 {
+				fmt.Println("Tool args:", formatToolArgs(decision.ToolArgs))
+			}
+			if confirmTools {
+				reader := bufio.NewReader(os.Stdin)
+				fmt.Print(ui.Prompt("Confirm agent action? [Y/n]: "))
+				confirm := strings.ToLower(strings.TrimSpace(readLine(reader)))
+				if confirm == "n" || confirm == "no" {
+					fmt.Println(ui.Warn("Canceled."))
+					if strings.TrimSpace(decision.Answer) != "" {
+						fmt.Println(decision.Answer)
+					}
+					return 0
+				}
+			}
+			run := tools.RunByNameWithParamsDetailed(baseDir, toolName, decision.ToolArgs)
 			if run.Code != 0 {
 				return run.Code
 			}
+			reader := bufio.NewReader(os.Stdin)
+			for run.CanContinue {
+				promptText := run.ContinuePrompt
+				if strings.TrimSpace(promptText) == "" {
+					promptText = "Show more results? [Y/n]: "
+				}
+				fmt.Print(ui.Prompt(promptText))
+				nextChoice := strings.ToLower(strings.TrimSpace(readLine(reader)))
+				if nextChoice == "n" || nextChoice == "no" {
+					break
+				}
+				run = tools.RunByNameWithParamsDetailed(baseDir, toolName, run.ContinueParams)
+				if run.Code != 0 {
+					return run.Code
+				}
+			}
+			history = append(history, askActionRecord{
+				Step:   step,
+				Action: "run_tool",
+				Target: toolName,
+				Args:   formatToolArgs(decision.ToolArgs),
+				Result: "ok",
+			})
+			if strings.TrimSpace(decision.Answer) != "" {
+				fmt.Println(decision.Answer)
+			}
+			if step == askMaxSteps {
+				fmt.Println(ui.Warn("Reached max agent steps; stopping."))
+				return 0
+			}
+			continue
 		}
-		if strings.TrimSpace(decision.Answer) != "" {
-			fmt.Println(decision.Answer)
-		}
+
+		fmt.Println(decision.Answer)
 		return 0
 	}
-	fmt.Println(decision.Answer)
 	return 0
+}
+
+func buildAskPlannerPrompt(original string, history []askActionRecord) string {
+	base := strings.TrimSpace(original)
+	if len(history) == 0 {
+		return base
+	}
+	lines := []string{
+		"Original user request:",
+		base,
+		"",
+		"Actions already executed in this session:",
+	}
+	for _, h := range history {
+		line := fmt.Sprintf("- step %d: %s target=%s", h.Step, h.Action, h.Target)
+		if strings.TrimSpace(h.Args) != "" {
+			line += " args=" + h.Args
+		}
+		if strings.TrimSpace(h.Result) != "" {
+			line += " result=" + h.Result
+		}
+		lines = append(lines, line)
+	}
+	lines = append(lines,
+		"",
+		"Decide the next best step. If the task is complete, return action=answer with the final response.",
+	)
+	return strings.Join(lines, "\n")
+}
+
+func decisionSignature(decision agent.DecisionResult) string {
+	switch decision.Action {
+	case "run_plugin":
+		return "run_plugin|" + strings.TrimSpace(decision.Plugin) + "|" + strings.Join(decision.Args, " ")
+	case "run_tool":
+		return "run_tool|" + strings.TrimSpace(decision.Tool) + "|" + formatToolArgs(decision.ToolArgs)
+	default:
+		return ""
+	}
 }
 
 func runAskInteractive(baseDir string, opts agent.AskOptions, confirmTools bool) int {

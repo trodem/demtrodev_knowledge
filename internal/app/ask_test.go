@@ -1,6 +1,11 @@
 package app
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"cli/internal/agent"
+)
 
 func TestParseLegacyAskArgs(t *testing.T) {
 	opts, confirm, prompt, err := parseLegacyAskArgs([]string{
@@ -34,5 +39,37 @@ func TestParseLegacyAskArgsMissingProviderValue(t *testing.T) {
 	_, _, _, err := parseLegacyAskArgs([]string{"--provider"})
 	if err == nil {
 		t.Fatal("expected error for missing --provider value")
+	}
+}
+
+func TestBuildAskPlannerPromptWithHistory(t *testing.T) {
+	history := []askActionRecord{
+		{Step: 1, Action: "run_tool", Target: "search", Args: "name=report, ext=pdf", Result: "ok"},
+	}
+	got := buildAskPlannerPrompt("trova i pdf recenti", history)
+	if !strings.Contains(got, "Original user request:") {
+		t.Fatalf("expected original request section, got: %s", got)
+	}
+	if !strings.Contains(got, "step 1: run_tool target=search") {
+		t.Fatalf("expected history section, got: %s", got)
+	}
+}
+
+func TestDecisionSignature(t *testing.T) {
+	pluginSig := decisionSignature(agent.DecisionResult{
+		Action: "run_plugin",
+		Plugin: "g_status",
+		Args:   []string{"--short"},
+	})
+	if pluginSig == "" || !strings.Contains(pluginSig, "run_plugin|g_status") {
+		t.Fatalf("unexpected plugin signature: %q", pluginSig)
+	}
+	toolSig := decisionSignature(agent.DecisionResult{
+		Action:   "run_tool",
+		Tool:     "search",
+		ToolArgs: map[string]string{"name": "report", "ext": "pdf"},
+	})
+	if toolSig == "" || !strings.Contains(toolSig, "run_tool|search|") {
+		t.Fatalf("unexpected tool signature: %q", toolSig)
 	}
 }
