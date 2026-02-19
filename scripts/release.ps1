@@ -53,7 +53,6 @@ try {
     $stageDir = Join-Path $distRoot $artifactName
     $binName = if ($os -eq "windows") { "dm.exe" } else { "dm" }
     $binPath = Join-Path $stageDir $binName
-    $zipPath = Join-Path $distRoot "$artifactName.zip"
 
     if (Test-Path $stageDir) {
       Remove-Item -Recurse -Force $stageDir
@@ -86,50 +85,16 @@ try {
     if (Test-Path "scripts/install.ps1") {
       Copy-Item "scripts/install.ps1" (Join-Path $stageDir "install.ps1")
     }
-    if (Test-Path "dm.agent.json") {
-      Copy-Item "dm.agent.json" (Join-Path $stageDir "dm.agent.json")
+    if (Test-Path "dm.agent.example.json") {
+      Copy-Item "dm.agent.example.json" (Join-Path $stageDir "dm.agent.example.json")
     }
     if (Test-Path "plugins") {
       Copy-Item -Recurse -Force "plugins" (Join-Path $stageDir "plugins")
     }
 
-    if (Test-Path $zipPath) {
-      Remove-Item -Force $zipPath
-    }
-
-    Write-Host "==> Packaging $zipPath"
-    $packaged = $false
-    $lastErr = $null
-    for ($attempt = 1; $attempt -le 5; $attempt++) {
-      try {
-        Compress-Archive -Path (Join-Path $stageDir "*") -DestinationPath $zipPath
-        $packaged = $true
-        break
-      } catch {
-        $lastErr = $_
-        if ($attempt -lt 5) {
-          $delay = 2 * $attempt
-          Write-Host "Packaging retry $attempt/5 failed, waiting $delay seconds..."
-          Start-Sleep -Seconds $delay
-          if (Test-Path $zipPath) {
-            Remove-Item -Force $zipPath -ErrorAction SilentlyContinue
-          }
-        }
-      }
-    }
-    if (-not $packaged) {
-      throw $lastErr
-    }
-
-    $hash = (Get-FileHash -Algorithm SHA256 $zipPath).Hash.ToLower()
-    $hashPath = "$zipPath.sha256"
-    Set-Content -Path $hashPath -Value "$hash  $(Split-Path -Leaf $zipPath)"
-
     Write-Host ""
     Write-Host "Release ready:"
     Write-Host "  Folder : $stageDir"
-    Write-Host "  Zip    : $zipPath"
-    Write-Host "  SHA256 : $hashPath"
     Write-Host ""
   }
 }

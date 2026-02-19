@@ -48,12 +48,10 @@ All standard targets (windows/linux/darwin):
 ```
 This produces:
 - `dist/dm-v0.2.0-windows-amd64/`
-- `dist/dm-v0.2.0-windows-amd64.zip`
-- `dist/dm-v0.2.0-windows-amd64.zip.sha256`
-Each artifact folder/zip includes:
+Each artifact folder includes:
 - `dm` or `dm.exe`
 - `install.ps1`
-- `dm.agent.json` (if present)
+- `dm.agent.example.json` (if present)
 - `README.txt`
 - `README.md`
 - `LICENSE` (if present)
