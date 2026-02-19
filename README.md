@@ -139,6 +139,8 @@ dm ask
 dm run <alias>
 dm tools
 dm tools <tool>
+dm toolkit
+dm toolkit <new|add|validate>
 dm -t [tool]
 dm -p [cmd]
 dm -o [cmd]
@@ -361,8 +363,8 @@ dm toolkit validate
 - Behavior:
   - updates toolkit files under `plugins/functions`
   - can ensure shared helpers in `plugins/utils.ps1`
-  - can ensure shared variables in `plugins/variables.ps1` (managed region `dm-toolkit-gen:variables`)
-- Quick reference: `docs/dm-toolkit-gen-cheatsheet.md`
+  - can ensure shared variables in `plugins/variables.ps1` (managed region `dm-toolkit:variables`)
+- Quick reference: `docs/dm-toolkit-cheatsheet.md`
 
 ## Project Layout
 ```

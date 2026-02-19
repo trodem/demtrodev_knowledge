@@ -17,7 +17,7 @@ func newToolkitCommand(opts *flags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "toolkit",
 		Short: "Create and maintain plugin toolkits with a guided UX",
-		Long:  "Guided wrapper around dm-toolkit-gen for creating and evolving plugin toolkits.",
+		Long:  "Built-in toolkit generator for creating and evolving plugin toolkits.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rt, err := loadRuntime(*opts)

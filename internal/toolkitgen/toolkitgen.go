@@ -412,8 +412,8 @@ func ensureVariable(repoRoot, name, defaultValue string) error {
 		return os.WriteFile(path, []byte(content), 0o644)
 	}
 
-	begin := "# region dm-toolkit-gen:variables"
-	end := "# endregion dm-toolkit-gen:variables"
+	begin := "# region dm-toolkit:variables"
+	end := "# endregion dm-toolkit:variables"
 	if !strings.Contains(content, begin) || !strings.Contains(content, end) {
 		if !strings.HasSuffix(content, "\n") {
 			content += "\n"

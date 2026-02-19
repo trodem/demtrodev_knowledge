@@ -150,3 +150,17 @@ func TestAddCobraSubcommandsIncludesDoctor(t *testing.T) {
 		t.Fatalf("expected doctor command, got %#v", cmd)
 	}
 }
+
+func TestAddCobraSubcommandsIncludesToolkit(t *testing.T) {
+	root := &cobra.Command{Use: "dm"}
+	opts := &flags{}
+	addCobraSubcommands(root, opts)
+
+	cmd, _, err := root.Find([]string{"toolkit"})
+	if err != nil {
+		t.Fatalf("expected toolkit command, got error: %v", err)
+	}
+	if cmd == nil || cmd.Name() != "toolkit" {
+		t.Fatalf("expected toolkit command, got %#v", cmd)
+	}
+}
