@@ -4,7 +4,6 @@ dm CLI - Quick Start
 This package contains:
 - dm.exe (or dm on non-Windows)
 - install.ps1
-- README.md
 - README.txt
 - plugins/
 
@@ -13,9 +12,12 @@ Install (recommended on Windows)
 1) Open PowerShell in this folder.
 2) Run:
    .\install.ps1
+   # or if restricted:
+   powershell -ExecutionPolicy Bypass -File .\install.ps1
    # default target: %LOCALAPPDATA%\Programs\dm-cli
-3) Open a new terminal.
-4) Verify:
+3) install.ps1 updates user PATH to the install dir.
+4) Open a new terminal.
+5) Verify:
    dm --help
 
 Manual run without installation
@@ -71,3 +73,4 @@ Notes
 - Splash shows Version and executable build time.
 - dm.json is optional (custom includes/profiles).
 - Set NO_COLOR=1 to disable ANSI colors.
+- Default install dir is %LOCALAPPDATA%\Programs\dm-cli.

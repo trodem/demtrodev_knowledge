@@ -53,7 +53,6 @@ Each artifact folder includes:
 - `install.ps1`
 - `dm.agent.example.json` (if present)
 - `README.txt`
-- `README.md`
 - `LICENSE` (if present)
 
 ### Scripts quick guide

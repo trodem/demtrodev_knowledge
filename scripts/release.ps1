@@ -73,9 +73,6 @@ try {
       throw "go build failed for $artifactName with exit code $LASTEXITCODE"
     }
 
-    if (Test-Path "README.md") {
-      Copy-Item "README.md" (Join-Path $stageDir "README.md")
-    }
     if (Test-Path "README.txt") {
       Copy-Item "README.txt" (Join-Path $stageDir "README.txt")
     }
