@@ -19,6 +19,9 @@ Install (recommended on Windows)
 4) Open a new terminal.
 5) Verify:
    dm --help
+6) Agent setup:
+   - install.ps1 creates dm.agent.json from dm.agent.example.json (if missing)
+   - add your OpenAI key in dm.agent.json or set OPENAI_API_KEY
 
 Manual run without installation
 -------------------------------

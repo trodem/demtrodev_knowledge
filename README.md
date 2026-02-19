@@ -55,6 +55,9 @@ Each artifact folder includes:
 - `README.txt`
 - `LICENSE` (if present)
 
+During installation, `install.ps1` creates `dm.agent.json` from `dm.agent.example.json` when missing.
+Then set your API key in `dm.agent.json` or use `OPENAI_API_KEY`.
+
 ### Scripts quick guide
 - `scripts/release.ps1`: build + package versioned release artifacts in `dist/`.
 - `scripts/install.ps1`: install an already built `dm` binary and plugins on a machine.

@@ -43,6 +43,14 @@ Copy-Item -Force $src $dst
 
 Write-Host "Installed: $dst"
 
+$agentExampleSource = Join-Path $scriptDir "dm.agent.example.json"
+$agentTarget = Join-Path $InstallDir "dm.agent.json"
+if ((Test-Path $agentExampleSource) -and (-not (Test-Path $agentTarget))) {
+  Copy-Item -Force $agentExampleSource $agentTarget
+  Write-Host "Created agent config from example: $agentTarget"
+  Write-Host "Update dm.agent.json with your OpenAI API key or set OPENAI_API_KEY."
+}
+
 $pluginsSource = Join-Path $scriptDir "plugins"
 if (Test-Path $pluginsSource) {
   $pluginsDest = Join-Path $InstallDir "plugins"
