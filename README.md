@@ -42,6 +42,10 @@ Local release package (Windows PowerShell):
 ```powershell
 .\scripts\release.ps1 -Version v0.2.0
 ```
+Update root `dm.exe` during release (windows/amd64 target):
+```powershell
+.\scripts\release.ps1 -Version v0.2.0 -UpdateRootExe
+```
 All standard targets (windows/linux/darwin):
 ```powershell
 .\scripts\release.ps1 -Version v0.2.0 -AllTargets
