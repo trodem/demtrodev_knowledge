@@ -42,10 +42,6 @@ Local release package (Windows PowerShell):
 ```powershell
 .\scripts\release.ps1 -Version v0.2.0
 ```
-Update root `dm.exe` during release (windows/amd64 target):
-```powershell
-.\scripts\release.ps1 -Version v0.2.0 -UpdateRootExe
-```
 All standard targets (windows/linux/darwin):
 ```powershell
 .\scripts\release.ps1 -Version v0.2.0 -AllTargets
@@ -61,6 +57,7 @@ Each artifact folder includes:
 
 During installation, `install.ps1` creates `dm.agent.json` from `dm.agent.example.json` when missing.
 Then set your API key in `dm.agent.json` or use `OPENAI_API_KEY`.
+For `windows/amd64` builds, `release.ps1` also updates root `.\dm.exe` by default.
 
 ### Scripts quick guide
 - `scripts/release.ps1`: build + package versioned release artifacts in `dist/`.

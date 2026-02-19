@@ -4,8 +4,7 @@ param(
   [string]$TargetOS = "windows",
   [string]$TargetArch = "amd64",
   [switch]$AllTargets,
-  [switch]$SkipTests,
-  [switch]$UpdateRootExe
+  [switch]$SkipTests
 )
 
 $ErrorActionPreference = "Stop"
@@ -93,7 +92,7 @@ try {
     Write-Host ""
     Write-Host "Release ready:"
     Write-Host "  Folder : $stageDir"
-    if ($UpdateRootExe -and $os -eq "windows" -and $arch -eq "amd64") {
+    if ($os -eq "windows" -and $arch -eq "amd64") {
       $rootExe = Join-Path $repoRoot "dm.exe"
       Copy-Item -Force $binPath $rootExe
       Write-Host "  Root EXE: $rootExe"
