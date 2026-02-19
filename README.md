@@ -58,6 +58,13 @@ Each artifact folder/zip includes:
 - `README.md`
 - `LICENSE` (if present)
 
+### Scripts quick guide
+- `scripts/release.ps1`: build + package versioned release artifacts in `dist/`.
+- `scripts/install.ps1`: install an already built `dm` binary and plugins on a machine.
+- `scripts/check_plugin_help.go`: validate comment-based help blocks for PowerShell plugin functions.
+- `scripts/smoke_plugins.ps1`: run smoke checks for plugin loading and key commands.
+- `scripts/dm.cmd` / `scripts/dm.ps1`: local wrappers to run `..\dm.exe` from the `scripts/` folder.
+
 ## Configuration
 `dm` works without a config file. If `dm.json` is missing, CLI starts with an empty config.
 
