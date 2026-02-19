@@ -26,7 +26,6 @@ type AutoRunResult struct {
 var toolMenuItems = []toolMenuItem{
 	{Key: "s", Name: "search", Synopsis: "Search files by name/extension"},
 	{Key: "r", Name: "rename", Synopsis: "Batch rename files with preview"},
-	{Key: "n", Name: "note", Synopsis: "Append a quick note to a file"},
 	{Key: "e", Name: "recent", Synopsis: "Show recent files"},
 	{Key: "b", Name: "backup", Synopsis: "Create a folder zip backup"},
 	{Key: "c", Name: "clean", Synopsis: "Delete empty folders"},
@@ -104,8 +103,6 @@ func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
 		return RunSearch(reader)
 	case "rename":
 		return RunRename(baseDir, reader)
-	case "note":
-		return RunQuickNote(baseDir, reader)
 	case "recent":
 		return RunRecent(reader)
 	case "backup":
@@ -116,7 +113,7 @@ func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
 		return RunSystem(reader)
 	default:
 		fmt.Println(ui.Error("Invalid tool:"), name)
-		fmt.Println(ui.Muted("Use: search|rename|note|recent|backup|clean|system"))
+		fmt.Println(ui.Muted("Use: search|rename|recent|backup|clean|system"))
 		return 1
 	}
 }
@@ -127,17 +124,15 @@ func normalizeToolName(name string) string {
 		return "search"
 	case "2", "rename", "r":
 		return "rename"
-	case "3", "note", "n":
-		return "note"
-	case "4", "recent", "rec":
+	case "3", "recent", "rec":
 		return "recent"
 	case "e":
 		return "recent"
-	case "5", "backup", "b":
+	case "4", "backup", "b":
 		return "backup"
-	case "6", "clean", "c":
+	case "5", "clean", "c":
 		return "clean"
-	case "7", "system", "sys", "htop":
+	case "6", "system", "sys", "htop":
 		return "system"
 	case "y":
 		return "system"

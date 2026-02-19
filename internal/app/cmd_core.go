@@ -282,7 +282,7 @@ func newToolsCommand(opts *flags) *cobra.Command {
 		Use:     "tools [tool]",
 		Aliases: []string{"tool"},
 		Short:   "Run tools menu or a specific tool",
-		Long:    "Interactive tools for search, rename, quick notes, recent files, backup, cleanup, and system snapshot.",
+		Long:    "Interactive tools for search, rename, recent files, backup, cleanup, and system snapshot.",
 		Example: "dm tools\ndm tools search\ndm tools system\ndm -t s",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -340,14 +340,6 @@ func newToolsCommand(opts *flags) *cobra.Command {
 		"dm tools rename",
 		"rename",
 		"r",
-	)
-	addToolSubcommand(
-		"note",
-		"Append a quick note",
-		"Asks for note file path and text, then appends a timestamped line.",
-		"dm tools note",
-		"note",
-		"n",
 	)
 	addToolSubcommand(
 		"recent",

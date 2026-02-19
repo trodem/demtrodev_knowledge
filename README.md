@@ -97,7 +97,6 @@ Run directly:
 ```bash
 dm tools search
 dm tools rename
-dm tools note
 dm tools recent
 dm tools backup
 dm tools clean
@@ -107,7 +106,6 @@ dm tools system
 Tool aliases:
 - `search/s`
 - `rename/r`
-- `note/n`
 - `recent/rec`
 - `backup/b`
 - `clean/c`

@@ -372,8 +372,6 @@ func assessDecisionRisk(decision agent.DecisionResult) (string, string) {
 			return "medium", "batch rename files"
 		case "backup", "b":
 			return "medium", "writes backup archive"
-		case "note", "n":
-			return "low", "append note"
 		default:
 			return "low", "read/inspect operation"
 		}
@@ -412,7 +410,6 @@ func buildToolsCatalog() string {
 	return strings.Join([]string{
 		"- search: Search files by name/extension | tool_args: base, ext, name, sort, limit, offset",
 		"- rename: Batch rename files with preview | tool_args: base, from, to, name, case_sensitive",
-		"- note: Append a quick note to a file",
 		"- recent: Show recent files | tool_args: base, limit, offset",
 		"- backup: Create a folder zip backup",
 		"- clean: Delete empty folders | tool_args: base, apply (true for delete, otherwise preview)",
@@ -422,7 +419,7 @@ func buildToolsCatalog() string {
 
 func isKnownTool(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "search", "s", "rename", "r", "note", "n", "recent", "rec", "e", "backup", "b", "clean", "c", "system", "sys", "htop", "y":
+	case "search", "s", "rename", "r", "recent", "rec", "e", "backup", "b", "clean", "c", "system", "sys", "htop", "y":
 		return true
 	default:
 		return false
