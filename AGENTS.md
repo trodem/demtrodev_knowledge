@@ -17,8 +17,9 @@ Repository guidelines for automated agents.
   - `dm.json` (optional root includes)
   - `config/*.json` (optional included fragments)
 - Plugin files:
-  - `plugins/variables.ps1` (shared variables + private helper functions)
-  - `plugins/functions/*.ps1` (public command functions)
+  - `plugins/functions/*.ps1` (standalone toolkit files with public command functions)
+  - `plugins/variables.ps1` (legacy — loaded but unused; kept for Go generator compatibility)
+  - `plugins/utils.ps1` (legacy — loaded but unused; kept for Go generator compatibility)
 
 ## Code Style
 - Keep ASCII-only in source files unless necessary.
@@ -91,9 +92,9 @@ Each toolkit groups related functions behind a shared prefix.
 Every toolkit file MUST follow this top-to-bottom structure:
 
 1. **Header banner** (bordered with `=` lines):
-   - Toolkit name and one-line purpose.
-   - Safety posture (e.g. "Non-destructive defaults, deterministic behavior").
-   - Entry point prefix (e.g. `sys_*`, `git_*`).
+   - Toolkit name with `(standalone)` tag and one-line purpose (e.g. `# SYSTEM TOOLKIT – Local system & network operations (standalone)`).
+   - Explicit `Safety:` line describing the risk profile (e.g. `# Safety: Read-only — no destructive operations.` or `# Safety: Non-destructive defaults. Kill/restart require -Force or confirmation.`).
+   - Entry point prefix (e.g. `# Entry point: sys_*`).
    - Exhaustive `FUNCTIONS` index listing every public function in the file.
 2. **Strict mode block** (immediately after header):
    ```
@@ -106,13 +107,12 @@ Every toolkit file MUST follow this top-to-bottom structure:
 ### Naming
 - **File name**: `<Name>_Toolkit.ps1` (PascalCase name, underscore, `Toolkit`).
   Use a numeric prefix for ordering when needed (e.g. `3_System_Toolkit.ps1`).
-  Domain-scoped toolkits go in subfolders (e.g. `STIBS/`, `m655/`).
+  Domain-scoped toolkits go in subfolders (e.g. `STIBS/`, `M365/`).
 - **Public functions**: `<prefix>_<action>` all lowercase (e.g. `sys_uptime`, `git_status`, `browser_open`).
   The prefix must be short, unique across all toolkits, and domain-descriptive.
 - **Private helpers**: start with `_` (e.g. `_assert_git_repo`, `_dc`, `_wifi_profiles`).
   Private helpers are invisible to the plugin menu and the AI agent.
 - **Module-level variables** in toolkit files must use `$script:` scope when they are file-local constants.
-  Shared variables that multiple toolkits depend on belong in `plugins/variables.ps1`.
 
 ### Help Blocks
 Every function (public AND private) MUST have a comment-based help block directly above it:
@@ -135,11 +135,19 @@ prefix_action -ParamName value
 - Do NOT use placeholder help like "Invoke X" / "Helper/command function for X" in new code.
 
 ### Parameters And Return Values
-- Mark mandatory parameters with `[Parameter(Mandatory)]` or `[Parameter(Mandatory = $true)]`.
+- Mark mandatory parameters with `[Parameter(Mandatory = $true)]` (always use the explicit form with spaces).
 - Use `[Parameter(Position = N)]` for positional convenience parameters.
 - Use `[ValidateSet(...)]` when the parameter domain is closed (e.g. service names).
 - Return structured `[pscustomobject]@{ ... }` objects instead of raw strings when the output has multiple fields.
   This allows pipeline processing, AI consumption, and consistent formatting.
+
+### PowerShell Coding Style
+- Use `Test-Path -LiteralPath` instead of `Test-Path -Path` to prevent wildcard expansion on paths containing brackets or special characters.
+- Place `$null` on the left side of equality comparisons (`$null -eq $x`, not `$x -eq $null`) to avoid unexpected collection filtering.
+- Never use `Write-Host` for function output — return `[pscustomobject]` or plain values so output is pipeline-friendly and consumable by AI agents.
+- Use `throw` for error conditions, not `Write-Host` with a return. Thrown errors surface clearly in agent logs.
+- Use `[Environment]::GetEnvironmentVariable($Name)` (not `$env:`) inside `_env_or_default` helpers for reliable null detection.
+- Prefer `Start-Process -FilePath` over direct invocation (`& exe`) when launching external GUI applications.
 
 ### Guard Helpers
 - Call `_assert_command_available -Name <tool>` before invoking external CLI tools (docker, git, netsh, m365, etc.).
@@ -158,12 +166,42 @@ Every toolkit MUST be fully self-contained with **zero** cross-file dependencies
 - Configuration values (paths, credentials, URLs) must be loaded via a local `_env_or_default` helper so they remain overridable through environment variables.
 - This guarantees that each `.ps1` file can be loaded, tested, and reasoned about in complete isolation — both by humans and AI agents — with no hidden dependencies.
 
+### Toolkit Anti-Patterns
+Do NOT create toolkits that:
+- Contain personal shell aliases or trivial wrappers around built-in cmdlets (e.g. `function c { Clear-Host }`).
+- Mix unrelated domains under one file without a coherent prefix.
+- Use functions without a domain prefix — every public function must follow the `<prefix>_<action>` convention.
+- Rely on bare `$variable` references defined outside the file.
+- Use `Format-Table`, `Format-List`, or `Write-Host` for structured output — return `[pscustomobject]` instead.
+- Contain Italian (or other non-English) help blocks — all documentation must be in English.
+
+Every function in a toolkit must provide meaningful value to an AI agent or automated workflow.
+If a function is only useful as a personal keyboard shortcut, it does not belong in a toolkit.
+
 ### Toolkit Generator Integration
 The `dm toolkit new` / `dm toolkit add` commands generate scaffolds that conform to these rules.
 - `dm toolkit new --name <Name> --prefix <prefix>` creates a new file with header, strict mode, and a starter `<prefix>_info` function.
 - `dm toolkit add --file <path> --prefix <prefix> --func <suffix>` appends a new function scaffold to an existing toolkit.
 - `dm toolkit validate` checks all toolkits for strict mode, help blocks, and duplicate function names.
 - After manual edits, always run `dm toolkit validate` to catch regressions.
+
+### Prefix Registry
+Active prefixes — do not reuse these when creating new toolkits:
+
+| Prefix | Toolkit | Path |
+|---|---|---|
+| `sys_*` | System Toolkit | `3_System_Toolkit.ps1` |
+| `git_*` | Git Toolkit | `4_Git_Toolkit.ps1` |
+| `fs_path_*` | FileSystem Path Toolkit | `2_FileSystem_Toolkit.ps1` |
+| `browser_*` | Browser Toolkit | `Browser_Toolkit.ps1` |
+| `start_*` | Start Dev Toolkit | `Start_Dev_Toolkit.ps1` |
+| `help_*` | Help Toolkit | `Help_Toolkit.ps1` |
+| `stibs_db_*` | STIBS DB Toolkit | `STIBS/STIBS_DB_Toolkit.ps1` |
+| `stibs_docker_*` | STIBS Docker Toolkit | `STIBS/STIBS_Docker_Toolkit.ps1` |
+| `kvpstar_*` | KVP Star Site Toolkit | `M365/KVP_Star_Site_Toolkit.ps1` |
+| `star_ibs_*` | Star IBS Applications Toolkit | `M365/Star_IBS_Applications_Toolkit.ps1` |
+
+Update this table when adding or removing toolkits.
 
 ### Checklist For New Toolkits
 1. Choose a unique prefix not already used by any existing toolkit.
