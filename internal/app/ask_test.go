@@ -127,6 +127,92 @@ func TestDecisionCacheStoreTTL(t *testing.T) {
 	}
 }
 
+func TestPluginArgsToPS(t *testing.T) {
+	args := pluginArgsToPS(map[string]string{
+		"Host":  "server1",
+		"Force": "true",
+		"Port":  "8080",
+		"Skip":  "false",
+	})
+	joined := strings.Join(args, " ")
+	if !strings.Contains(joined, "-Force") {
+		t.Fatalf("expected -Force switch, got %q", joined)
+	}
+	if !strings.Contains(joined, "-Host server1") {
+		t.Fatalf("expected -Host server1, got %q", joined)
+	}
+	if !strings.Contains(joined, "-Port 8080") {
+		t.Fatalf("expected -Port 8080, got %q", joined)
+	}
+	if strings.Contains(joined, "-Skip") {
+		t.Fatalf("expected -Skip false to be omitted, got %q", joined)
+	}
+}
+
+func TestPluginArgsToPS_Empty(t *testing.T) {
+	args := pluginArgsToPS(nil)
+	if len(args) != 0 {
+		t.Fatalf("expected empty args, got %v", args)
+	}
+}
+
+func TestPluginArgsToPS_DashPrefix(t *testing.T) {
+	args := pluginArgsToPS(map[string]string{
+		"-Name": "value",
+	})
+	if len(args) != 2 || args[0] != "-Name" || args[1] != "value" {
+		t.Fatalf("expected [-Name value], got %v", args)
+	}
+}
+
+func TestFormatPluginArgs(t *testing.T) {
+	got := formatPluginArgs(map[string]string{
+		"Host": "server1",
+		"Port": "8080",
+	})
+	if !strings.Contains(got, "-Host server1") {
+		t.Fatalf("expected -Host server1, got %q", got)
+	}
+	if !strings.Contains(got, "-Port 8080") {
+		t.Fatalf("expected -Port 8080, got %q", got)
+	}
+}
+
+func TestFormatPluginArgs_Empty(t *testing.T) {
+	got := formatPluginArgs(nil)
+	if got != "" {
+		t.Fatalf("expected empty string, got %q", got)
+	}
+}
+
+func TestDecisionSignatureWithPluginArgs(t *testing.T) {
+	sig := decisionSignature(agent.DecisionResult{
+		Action:     "run_plugin",
+		Plugin:     "sys_uptime",
+		PluginArgs: map[string]string{"Host": "server1"},
+	})
+	if !strings.Contains(sig, "run_plugin|sys_uptime|") {
+		t.Fatalf("unexpected signature: %q", sig)
+	}
+	if !strings.Contains(sig, "-Host server1") {
+		t.Fatalf("expected -Host server1 in signature, got %q", sig)
+	}
+}
+
+func TestPlannedActionSummaryPluginArgs(t *testing.T) {
+	got := plannedActionSummary(agent.DecisionResult{
+		Action:     "run_plugin",
+		Plugin:     "sys_uptime",
+		PluginArgs: map[string]string{"Host": "server1"},
+	})
+	if !strings.Contains(got, "plugin sys_uptime") {
+		t.Fatalf("expected plugin name, got %q", got)
+	}
+	if !strings.Contains(got, "-Host server1") {
+		t.Fatalf("expected plugin args, got %q", got)
+	}
+}
+
 func TestIsKnownTool(t *testing.T) {
 	known := []string{"search", "s", "rename", "r", "recent", "rec", "backup", "b", "clean", "c", "system", "sys", "htop"}
 	for _, name := range known {

@@ -60,15 +60,16 @@ type SessionProvider struct {
 }
 
 type DecisionResult struct {
-	Action   string
-	Answer   string
-	Plugin   string
-	Tool     string
-	ToolArgs map[string]string
-	Args     []string
-	Reason   string
-	Provider string
-	Model    string
+	Action     string
+	Answer     string
+	Plugin     string
+	PluginArgs map[string]string
+	Tool       string
+	ToolArgs   map[string]string
+	Args       []string
+	Reason     string
+	Provider   string
+	Model      string
 }
 
 func Ask(prompt string) (string, error) {
@@ -203,28 +204,36 @@ func DecideWithPlugins(userPrompt string, pluginCatalog string, toolCatalog stri
 	}
 	decisionPrompt := strings.Join([]string{
 		"You are an execution planner for a CLI assistant.",
-		"You can either answer directly, or request running one plugin/function, or request running one tool.",
-		"Available plugins:",
+		"You can either answer directly, run a plugin (PowerShell function), or run a built-in tool.",
+		"",
+		"Available plugins (PowerShell functions):",
 		pluginCatalog,
 		"",
 		"Available tools:",
 		toolCatalog,
 		"",
-		"Return ONLY valid JSON with this schema:",
+		"Return ONLY valid JSON. Use one of these schemas:",
 		`{"action":"answer","answer":"text"}`,
-		`or {"action":"run_plugin","plugin":"name","args":["arg1"],"reason":"why","answer":"optional text before/after run"}`,
-		`or {"action":"run_tool","tool":"name","tool_args":{"key":"value"},"reason":"why","answer":"optional text before/after run"}`,
+		`{"action":"run_plugin","plugin":"name","plugin_args":{"ParamName":"value","SwitchParam":"true"},"reason":"why","answer":"optional text"}`,
+		`{"action":"run_tool","tool":"name","tool_args":{"key":"value"},"reason":"why","answer":"optional text"}`,
 		"",
-		"Rules:",
-		"- action must be answer, run_plugin, or run_tool",
-		"- if run_plugin, plugin must be one of the available plugin names",
-		"- if run_tool, tool must be one of the available tools",
-		"- do not invent plugin names",
-		"- do not invent tool names",
-		"- for search tool prefer tool_args keys: base, ext, name, sort, limit, offset",
-		"- for rename tool prefer tool_args keys: base, from, to, name, case_sensitive",
-		"- for recent tool prefer tool_args keys: base, limit, offset",
-		"- for clean tool prefer tool_args keys: base, apply",
+		"Plugin argument rules:",
+		"- Use plugin_args (object) for named PowerShell parameters, NOT the args array.",
+		"- Keys are parameter names WITHOUT the leading dash (e.g. \"Host\" not \"-Host\").",
+		"- For switch parameters (flags like -Force, -Confirm), set the value to \"true\".",
+		"- If a mandatory parameter is missing from the user request, do NOT guess.",
+		"  Instead return action=answer and ask the user to provide the missing value.",
+		"- Only include parameters the user explicitly mentioned or that have obvious defaults.",
+		"",
+		"General rules:",
+		"- action must be answer, run_plugin, or run_tool.",
+		"- Do not invent plugin or tool names; use only the catalog above.",
+		"- If the user request does not match any plugin or tool, answer directly.",
+		"- If a plugin requires confirmation or is destructive, mention it in the answer.",
+		"- For search tool use tool_args keys: base, ext, name, sort, limit, offset.",
+		"- For rename tool use tool_args keys: base, from, to, name, case_sensitive.",
+		"- For recent tool use tool_args keys: base, limit, offset.",
+		"- For clean tool use tool_args keys: base, apply (true for delete, otherwise preview).",
 		"",
 		"User request:",
 		p,
@@ -269,8 +278,8 @@ func askDecisionJSONRepair(rawText string, opts AskOptions) (AskResult, error) {
 		"Do not add markdown fences.",
 		"Use exactly one of these schemas:",
 		`{"action":"answer","answer":"text"}`,
-		`{"action":"run_plugin","plugin":"name","args":["arg1"],"reason":"why","answer":"optional text before/after run"}`,
-		`{"action":"run_tool","tool":"name","tool_args":{"key":"value"},"reason":"why","answer":"optional text before/after run"}`,
+		`{"action":"run_plugin","plugin":"name","plugin_args":{"ParamName":"value"},"reason":"why","answer":"optional text"}`,
+		`{"action":"run_tool","tool":"name","tool_args":{"key":"value"},"reason":"why","answer":"optional text"}`,
 		"",
 		"Text:",
 		strings.TrimSpace(rawText),
@@ -294,24 +303,37 @@ func parseDecisionJSON(text string) (DecisionResult, error) {
 		payload = m
 	}
 	var obj struct {
-		Action   string         `json:"action"`
-		Answer   string         `json:"answer"`
-		Plugin   string         `json:"plugin"`
-		Tool     string         `json:"tool"`
-		ToolArgs map[string]any `json:"tool_args"`
-		Args     []string       `json:"args"`
-		Reason   string         `json:"reason"`
+		Action     string         `json:"action"`
+		Answer     string         `json:"answer"`
+		Plugin     string         `json:"plugin"`
+		PluginArgs map[string]any `json:"plugin_args"`
+		Tool       string         `json:"tool"`
+		ToolArgs   map[string]any `json:"tool_args"`
+		Args       []string       `json:"args"`
+		Reason     string         `json:"reason"`
 	}
 	if err := json.Unmarshal([]byte(payload), &obj); err != nil {
 		return DecisionResult{}, err
 	}
-	toolArgs := map[string]string{}
-	for k, v := range obj.ToolArgs {
+	pluginArgs := sanitizeAnyMap(obj.PluginArgs)
+	toolArgs := sanitizeAnyMap(obj.ToolArgs)
+	return DecisionResult{
+		Action:     strings.ToLower(strings.TrimSpace(obj.Action)),
+		Answer:     strings.TrimSpace(obj.Answer),
+		Plugin:     strings.TrimSpace(obj.Plugin),
+		PluginArgs: pluginArgs,
+		Tool:       strings.TrimSpace(obj.Tool),
+		ToolArgs:   toolArgs,
+		Args:       obj.Args,
+		Reason:     strings.TrimSpace(obj.Reason),
+	}, nil
+}
+
+func sanitizeAnyMap(m map[string]any) map[string]string {
+	out := map[string]string{}
+	for k, v := range m {
 		key := strings.TrimSpace(k)
-		if key == "" {
-			continue
-		}
-		if v == nil {
+		if key == "" || v == nil {
 			continue
 		}
 		val := strings.TrimSpace(fmt.Sprint(v))
@@ -319,17 +341,9 @@ func parseDecisionJSON(text string) (DecisionResult, error) {
 		if val == "" || lc == "<nil>" || lc == "null" {
 			continue
 		}
-		toolArgs[key] = val
+		out[key] = val
 	}
-	return DecisionResult{
-		Action:   strings.ToLower(strings.TrimSpace(obj.Action)),
-		Answer:   strings.TrimSpace(obj.Answer),
-		Plugin:   strings.TrimSpace(obj.Plugin),
-		Tool:     strings.TrimSpace(obj.Tool),
-		ToolArgs: toolArgs,
-		Args:     obj.Args,
-		Reason:   strings.TrimSpace(obj.Reason),
-	}, nil
+	return out
 }
 
 func applyOllamaOverrides(cfg *userConfig, opts AskOptions) {

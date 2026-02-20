@@ -102,6 +102,65 @@ func TestParseDecisionJSON_InvalidJSON(t *testing.T) {
 	}
 }
 
+func TestParseDecisionJSON_RunPluginWithPluginArgs(t *testing.T) {
+	raw := `{"action":"run_plugin","plugin":"sys_uptime","plugin_args":{"Host":"server1","Force":"true"},"reason":"check uptime"}`
+	d, err := parseDecisionJSON(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Action != "run_plugin" {
+		t.Fatalf("expected action=run_plugin, got %q", d.Action)
+	}
+	if d.Plugin != "sys_uptime" {
+		t.Fatalf("expected plugin='sys_uptime', got %q", d.Plugin)
+	}
+	if d.PluginArgs["Host"] != "server1" {
+		t.Fatalf("expected PluginArgs[Host]='server1', got %q", d.PluginArgs["Host"])
+	}
+	if d.PluginArgs["Force"] != "true" {
+		t.Fatalf("expected PluginArgs[Force]='true', got %q", d.PluginArgs["Force"])
+	}
+}
+
+func TestParseDecisionJSON_PluginArgsFalseSwitch(t *testing.T) {
+	raw := `{"action":"run_plugin","plugin":"test","plugin_args":{"Name":"val","Skip":"false","Empty":null}}`
+	d, err := parseDecisionJSON(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.PluginArgs["Name"] != "val" {
+		t.Fatalf("expected Name='val', got %q", d.PluginArgs["Name"])
+	}
+	if d.PluginArgs["Skip"] != "false" {
+		t.Fatalf("expected Skip='false', got %q", d.PluginArgs["Skip"])
+	}
+	if _, ok := d.PluginArgs["Empty"]; ok {
+		t.Fatal("expected null to be filtered out")
+	}
+}
+
+func TestSanitizeAnyMap(t *testing.T) {
+	m := map[string]any{
+		"good":    "value",
+		"null":    nil,
+		"empty":   "",
+		"  trim ": " padded ",
+	}
+	out := sanitizeAnyMap(m)
+	if out["good"] != "value" {
+		t.Fatalf("expected good='value', got %q", out["good"])
+	}
+	if _, ok := out["null"]; ok {
+		t.Fatal("expected null to be filtered")
+	}
+	if _, ok := out["empty"]; ok {
+		t.Fatal("expected empty to be filtered")
+	}
+	if out["trim"] != "padded" {
+		t.Fatalf("expected trim='padded', got %q", out["trim"])
+	}
+}
+
 func TestParseDecisionJSON_NullToolArgs(t *testing.T) {
 	raw := `{"action":"run_tool","tool":"search","tool_args":{"base":"C:\\","ext":null,"name":""}}`
 	d, err := parseDecisionJSON(raw)

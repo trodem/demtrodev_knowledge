@@ -104,17 +104,21 @@ func addCobraSubcommands(root *cobra.Command) {
 			if err != nil {
 				return err
 			}
-			if len(args) == 0 {
-				if askJSON {
+			if askJSON {
+				if len(args) == 0 {
 					return fmt.Errorf("--json requires a prompt (non-interactive mode)")
 				}
-				code := runAskInteractiveWithRisk(rt.BaseDir, askOpts, confirmTools, riskPolicy)
+				code := runAskOnceWithSession(rt.BaseDir, strings.Join(args, " "), askOpts, confirmTools, riskPolicy, nil, true)
 				if code != 0 {
 					return exitCodeError{code: code}
 				}
 				return nil
 			}
-			code := runAskOnceWithSession(rt.BaseDir, strings.Join(args, " "), askOpts, confirmTools, riskPolicy, nil, askJSON)
+			var initialPrompt string
+			if len(args) > 0 {
+				initialPrompt = strings.Join(args, " ")
+			}
+			code := runAskInteractiveWithRisk(rt.BaseDir, askOpts, confirmTools, riskPolicy, initialPrompt)
 			if code != 0 {
 				return exitCodeError{code: code}
 			}

@@ -31,16 +31,26 @@ type FunctionFile struct {
 	Functions []string
 }
 
-type Info struct {
+type ParamDetail struct {
 	Name        string
-	Kind        string
-	Path        string
-	Sources     []string
-	Runner      string
-	Synopsis    string
-	Description string
-	Parameters  []string
-	Examples    []string
+	Type        string
+	Mandatory   bool
+	Switch      bool
+	ValidateSet []string
+	Default     string
+}
+
+type Info struct {
+	Name         string
+	Kind         string
+	Path         string
+	Sources      []string
+	Runner       string
+	Synopsis     string
+	Description  string
+	Parameters   []string
+	ParamDetails []ParamDetail
+	Examples     []string
 }
 
 type RunError struct {
@@ -195,21 +205,23 @@ func GetInfo(baseDir, name string) (Info, error) {
 	}
 
 	help, _ := parsePowerShellFunctionHelp(fnPath, name)
+	paramDetails := parsePowerShellParamBlock(fnPath, name)
 	sources := sourcesForFunction(loadFiles, name)
 	if len(sources) == 0 {
 		sources = []string{fnPath}
 	}
 
 	out := Info{
-		Name:        name,
-		Kind:        "function",
-		Path:        fnPath,
-		Sources:     sources,
-		Runner:      "powershell function bridge",
-		Synopsis:    help.Synopsis,
-		Description: help.Description,
-		Parameters:  help.Parameters,
-		Examples:    help.Examples,
+		Name:         name,
+		Kind:         "function",
+		Path:         fnPath,
+		Sources:      sources,
+		Runner:       "powershell function bridge",
+		Synopsis:     help.Synopsis,
+		Description:  help.Description,
+		Parameters:   help.Parameters,
+		ParamDetails: paramDetails,
+		Examples:     help.Examples,
 	}
 	setCachedInfo(cacheKey, dir, out, dirStamp, buildInfoFileStamps(out))
 	return out, nil
@@ -549,6 +561,100 @@ func parseCommentBlockHelp(lines []string) functionHelp {
 		}
 	}
 	return helper
+}
+
+var (
+	psParamMandatory  = regexp.MustCompile(`(?i)\[Parameter\s*\([^)]*Mandatory\b`)
+	psParamVarLine    = regexp.MustCompile(`(?i)^\s*(?:\[([^\]]+)\])?\s*\$(\w+)`)
+	psValidateSetLine = regexp.MustCompile(`(?i)\[ValidateSet\s*\(([^)]+)\)\]`)
+	psDefaultValue    = regexp.MustCompile(`\$\w+\s*=\s*(.+)`)
+)
+
+func parsePowerShellParamBlock(path, functionName string) []ParamDetail {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(string(data), "\n")
+	fnIdx := -1
+	for i, line := range lines {
+		m := psFunctionLine.FindStringSubmatch(line)
+		if len(m) == 2 && strings.EqualFold(strings.TrimSpace(m[1]), functionName) {
+			fnIdx = i
+			break
+		}
+	}
+	if fnIdx == -1 {
+		return nil
+	}
+
+	paramStart := -1
+	for i := fnIdx + 1; i < len(lines) && i < fnIdx+10; i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(strings.ToLower(trimmed), "param") && strings.Contains(trimmed, "(") {
+			paramStart = i
+			break
+		}
+	}
+	if paramStart == -1 {
+		return nil
+	}
+
+	depth := 0
+	var blockLines []string
+	for i := paramStart; i < len(lines); i++ {
+		line := lines[i]
+		depth += strings.Count(line, "(") - strings.Count(line, ")")
+		blockLines = append(blockLines, line)
+		if depth <= 0 {
+			break
+		}
+	}
+
+	var params []ParamDetail
+	var pendingMandatory bool
+	var pendingValidateSet []string
+	for _, raw := range blockLines {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
+		}
+		if psParamMandatory.MatchString(line) {
+			pendingMandatory = true
+		}
+		if m := psValidateSetLine.FindStringSubmatch(line); len(m) == 2 {
+			vals := strings.Split(m[1], ",")
+			for _, v := range vals {
+				v = strings.TrimSpace(v)
+				v = strings.Trim(v, `"'`)
+				if v != "" {
+					pendingValidateSet = append(pendingValidateSet, v)
+				}
+			}
+		}
+		if m := psParamVarLine.FindStringSubmatch(line); len(m) == 3 {
+			typeName := strings.TrimSpace(m[1])
+			paramName := strings.TrimSpace(m[2])
+			if paramName == "" {
+				continue
+			}
+			pd := ParamDetail{
+				Name:        paramName,
+				Type:        typeName,
+				Mandatory:   pendingMandatory,
+				Switch:      strings.EqualFold(typeName, "switch"),
+				ValidateSet: pendingValidateSet,
+			}
+			if dm := psDefaultValue.FindStringSubmatch(line); len(dm) == 2 {
+				pd.Default = strings.TrimSpace(strings.TrimRight(dm[1], ","))
+				pd.Default = strings.Trim(pd.Default, `"'`)
+			}
+			params = append(params, pd)
+			pendingMandatory = false
+			pendingValidateSet = nil
+		}
+	}
+	return params
 }
 
 func sourcesForFunction(loadFiles []string, functionName string) []string {

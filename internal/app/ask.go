@@ -183,6 +183,15 @@ func runAskOnceWithSession(baseDir, prompt string, opts agent.AskOptions, confir
 				}
 				return 1
 			}
+			var runArgs []string
+			var argsDisplay string
+			if len(decision.PluginArgs) > 0 {
+				runArgs = pluginArgsToPS(decision.PluginArgs)
+				argsDisplay = formatPluginArgs(decision.PluginArgs)
+			} else {
+				runArgs = decision.Args
+				argsDisplay = strings.Join(decision.Args, " ")
+			}
 			risk, riskReason := assessDecisionRisk(decision)
 			if !jsonOut {
 				if strings.TrimSpace(decision.Reason) != "" {
@@ -195,7 +204,7 @@ func runAskOnceWithSession(baseDir, prompt string, opts agent.AskOptions, confir
 				Step:       step,
 				Action:     "run_plugin",
 				Target:     decision.Plugin,
-				Args:       strings.Join(decision.Args, " "),
+				Args:       argsDisplay,
 				Reason:     strings.TrimSpace(decision.Reason),
 				Risk:       risk,
 				RiskReason: riskReason,
@@ -219,7 +228,7 @@ func runAskOnceWithSession(baseDir, prompt string, opts agent.AskOptions, confir
 					return 0
 				}
 			}
-			if err := plugins.Run(baseDir, decision.Plugin, decision.Args); err != nil {
+			if err := plugins.Run(baseDir, decision.Plugin, runArgs); err != nil {
 				stepRecord.Status = "error"
 				jsonResult.Steps = append(jsonResult.Steps, stepRecord)
 				if jsonOut {
@@ -238,7 +247,7 @@ func runAskOnceWithSession(baseDir, prompt string, opts agent.AskOptions, confir
 				Step:   step,
 				Action: "run_plugin",
 				Target: decision.Plugin,
-				Args:   strings.Join(decision.Args, " "),
+				Args:   argsDisplay,
 				Result: "ok",
 			})
 			if strings.TrimSpace(decision.Answer) != "" {
@@ -472,7 +481,11 @@ func decisionCacheKey(prompt, pluginCatalog, toolCatalog string, opts agent.AskO
 func decisionSignature(decision agent.DecisionResult) string {
 	switch decision.Action {
 	case "run_plugin":
-		return "run_plugin|" + strings.TrimSpace(decision.Plugin) + "|" + strings.Join(decision.Args, " ")
+		argsPart := formatPluginArgs(decision.PluginArgs)
+		if argsPart == "" {
+			argsPart = strings.Join(decision.Args, " ")
+		}
+		return "run_plugin|" + strings.TrimSpace(decision.Plugin) + "|" + argsPart
 	case "run_tool":
 		return "run_tool|" + strings.TrimSpace(decision.Tool) + "|" + formatToolArgs(decision.ToolArgs)
 	default:
@@ -480,7 +493,7 @@ func decisionSignature(decision agent.DecisionResult) string {
 	}
 }
 
-func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmTools bool, riskPolicy string) int {
+func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmTools bool, riskPolicy string, initialPrompt string) int {
 	session, err := agent.ResolveSessionProvider(opts)
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -493,6 +506,13 @@ func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmToo
 	fmt.Println("Exit commands: /exit, exit, quit")
 	reader := bufio.NewReader(os.Stdin)
 	previousPrompts := []string{}
+
+	if strings.TrimSpace(initialPrompt) != "" {
+		fmt.Printf("%s%s\n", ui.Warn(promptLabel), initialPrompt)
+		_ = runAskOnceWithSession(baseDir, initialPrompt, sessionOpts, confirmTools, riskPolicy, previousPrompts, false)
+		previousPrompts = append(previousPrompts, initialPrompt)
+	}
+
 	for {
 		fmt.Print(ui.Warn(promptLabel))
 		line, readErr := reader.ReadString('\n')
@@ -589,12 +609,37 @@ func buildPluginCatalog(baseDir string) string {
 		if strings.TrimSpace(info.Synopsis) != "" {
 			line += ": " + info.Synopsis
 		}
-		if len(info.Parameters) > 0 {
+		if len(info.ParamDetails) > 0 {
+			line += " | params: " + formatParamDetailsForCatalog(info.ParamDetails)
+		} else if len(info.Parameters) > 0 {
 			line += " | params: " + strings.Join(info.Parameters, "; ")
 		}
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+func formatParamDetailsForCatalog(details []plugins.ParamDetail) string {
+	parts := make([]string, 0, len(details))
+	for _, d := range details {
+		s := d.Name
+		if d.Switch {
+			s += " [switch]"
+		} else if d.Type != "" {
+			s += " [" + d.Type + "]"
+		}
+		if d.Mandatory {
+			s += " (required)"
+		}
+		if len(d.ValidateSet) > 0 {
+			s += " values=" + strings.Join(d.ValidateSet, "|")
+		}
+		if d.Default != "" {
+			s += " default=" + d.Default
+		}
+		parts = append(parts, s)
+	}
+	return strings.Join(parts, "; ")
 }
 
 func buildToolsCatalog() string {
@@ -615,6 +660,52 @@ func isKnownTool(name string) bool {
 	default:
 		return false
 	}
+}
+
+func pluginArgsToPS(pluginArgs map[string]string) []string {
+	if len(pluginArgs) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(pluginArgs))
+	for k := range pluginArgs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var args []string
+	for _, k := range keys {
+		v := strings.TrimSpace(pluginArgs[k])
+		paramName := k
+		if !strings.HasPrefix(paramName, "-") {
+			paramName = "-" + paramName
+		}
+		lv := strings.ToLower(v)
+		if lv == "true" || lv == "" {
+			args = append(args, paramName)
+			continue
+		}
+		if lv == "false" {
+			continue
+		}
+		args = append(args, paramName, v)
+	}
+	return args
+}
+
+func formatPluginArgs(pluginArgs map[string]string) string {
+	if len(pluginArgs) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(pluginArgs))
+	for k := range pluginArgs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("-%s %s", k, pluginArgs[k]))
+	}
+	return strings.Join(parts, " ")
 }
 
 func formatToolArgs(args map[string]string) string {
@@ -645,7 +736,9 @@ func plannedActionSummary(decision agent.DecisionResult) string {
 	switch strings.ToLower(strings.TrimSpace(decision.Action)) {
 	case "run_plugin":
 		s := "plugin " + strings.TrimSpace(decision.Plugin)
-		if len(decision.Args) > 0 {
+		if a := formatPluginArgs(decision.PluginArgs); a != "" {
+			s += " " + a
+		} else if len(decision.Args) > 0 {
 			s += " " + strings.Join(decision.Args, " ")
 		}
 		return s

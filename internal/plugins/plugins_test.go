@@ -226,6 +226,78 @@ func TestGetInfoCacheInvalidatesOnSourceChange(t *testing.T) {
 	}
 }
 
+func TestParsePowerShellParamBlock(t *testing.T) {
+	baseDir := t.TempDir()
+	pluginsDir := filepath.Join(baseDir, "plugins")
+	if err := os.MkdirAll(pluginsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	src := `<#
+.SYNOPSIS
+Test function with params
+.PARAMETER Host
+The target host
+.PARAMETER Force
+Skip confirmation
+#>
+function test_func {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Host,
+
+        [ValidateSet("json", "text")]
+        [string]$Format = "text",
+
+        [switch]$Force
+    )
+    Write-Output "ok"
+}
+`
+	path := filepath.Join(pluginsDir, "test.ps1")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	params := parsePowerShellParamBlock(path, "test_func")
+	if len(params) != 3 {
+		t.Fatalf("expected 3 params, got %d: %+v", len(params), params)
+	}
+	host := params[0]
+	if host.Name != "Host" || !host.Mandatory || host.Switch {
+		t.Fatalf("unexpected Host param: %+v", host)
+	}
+	format := params[1]
+	if format.Name != "Format" || format.Mandatory || format.Switch {
+		t.Fatalf("unexpected Format param: %+v", format)
+	}
+	if len(format.ValidateSet) != 2 || format.ValidateSet[0] != "json" || format.ValidateSet[1] != "text" {
+		t.Fatalf("unexpected ValidateSet: %v", format.ValidateSet)
+	}
+	if format.Default != "text" {
+		t.Fatalf("expected default='text', got %q", format.Default)
+	}
+	force := params[2]
+	if force.Name != "Force" || !force.Switch || force.Mandatory {
+		t.Fatalf("unexpected Force param: %+v", force)
+	}
+}
+
+func TestParsePowerShellParamBlock_NoParams(t *testing.T) {
+	baseDir := t.TempDir()
+	pluginsDir := filepath.Join(baseDir, "plugins")
+	if err := os.MkdirAll(pluginsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	src := "function simple_func {\n    Write-Output 'ok'\n}\n"
+	path := filepath.Join(pluginsDir, "simple.ps1")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	params := parsePowerShellParamBlock(path, "simple_func")
+	if len(params) != 0 {
+		t.Fatalf("expected 0 params, got %d", len(params))
+	}
+}
+
 func TestListFunctionFiles(t *testing.T) {
 	baseDir := t.TempDir()
 	pluginsDir := filepath.Join(baseDir, "plugins")
