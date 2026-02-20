@@ -91,7 +91,6 @@ func addCobraSubcommands(root *cobra.Command) {
 	root.AddCommand(openCmd)
 	root.AddCommand(newPluginCommand())
 	root.AddCommand(newToolsCommand())
-	root.AddCommand(newToolkitCommand())
 	var doctorJSON bool
 	doctorCmd := &cobra.Command{
 		Use:   "doctor",

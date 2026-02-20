@@ -113,16 +113,6 @@ func runLegacy(args []string) int {
 			return runAskInteractiveWithRisk(baseDir, askOpts, confirmTools, riskPolicy)
 		}
 		return runAskOnceWithSession(baseDir, prompt, askOpts, confirmTools, riskPolicy, nil, false)
-	case "toolkit":
-		if len(args) == 1 {
-			if err := runToolkitWizard(baseDir); err != nil {
-				fmt.Println("Error:", err)
-				return 1
-			}
-			return 0
-		}
-		fmt.Println("Usage: dm toolkit [new|add|validate]")
-		return 0
 	}
 
 	return runPluginOrSuggest(baseDir, args)
@@ -298,7 +288,7 @@ func runPlugin(baseDir string, args []string) int {
 
 func suggestTopLevelName(baseDir string, input string) string {
 	candidates := []string{
-		"ps_profile", "cp", "open", "doctor", "plugins", "tools", "toolkit", "ask", "completion", "help",
+		"ps_profile", "cp", "open", "doctor", "plugins", "tools", "ask", "completion", "help",
 	}
 	if items, err := plugins.ListEntries(baseDir, true); err == nil {
 		for _, it := range items {

@@ -18,8 +18,6 @@ Repository guidelines for automated agents.
   - `config/*.json` (optional included fragments)
 - Plugin files:
   - `plugins/functions/*.ps1` (standalone toolkit files with public command functions)
-  - `plugins/variables.ps1` (legacy — loaded but unused; kept for Go generator compatibility)
-  - `plugins/utils.ps1` (legacy — loaded but unused; kept for Go generator compatibility)
 
 ## Code Style
 - Keep ASCII-only in source files unless necessary.
@@ -178,13 +176,6 @@ Do NOT create toolkits that:
 Every function in a toolkit must provide meaningful value to an AI agent or automated workflow.
 If a function is only useful as a personal keyboard shortcut, it does not belong in a toolkit.
 
-### Toolkit Generator Integration
-The `dm toolkit new` / `dm toolkit add` commands generate scaffolds that conform to these rules.
-- `dm toolkit new --name <Name> --prefix <prefix>` creates a new file with header, strict mode, and a starter `<prefix>_info` function.
-- `dm toolkit add --file <path> --prefix <prefix> --func <suffix>` appends a new function scaffold to an existing toolkit.
-- `dm toolkit validate` checks all toolkits for strict mode, help blocks, and duplicate function names.
-- After manual edits, always run `dm toolkit validate` to catch regressions.
-
 ### Prefix Registry
 Active prefixes — do not reuse these when creating new toolkits:
 
@@ -204,8 +195,8 @@ Active prefixes — do not reuse these when creating new toolkits:
 Update this table when adding or removing toolkits.
 
 ### Checklist For New Toolkits
-1. Choose a unique prefix not already used by any existing toolkit.
-2. Create file via `dm toolkit new` or manually with the header banner template.
+1. Choose a unique prefix not already used by any existing toolkit (see Prefix Registry above).
+2. Create the file manually following the header banner template.
 3. Add `Set-StrictMode` + `$ErrorActionPreference` immediately after the header.
 4. Verify the toolkit is truly standalone — no calls to functions in any other `.ps1` file.
 5. Include private guard helpers (`_assert_command_available`, `_assert_path_exists`) and config loaders inside the toolkit.
@@ -213,8 +204,7 @@ Update this table when adding or removing toolkits.
 7. Return `[pscustomobject]` for multi-field outputs.
 8. Gate destructive actions behind `-Force` or `_confirm_action`.
 9. Update the `FUNCTIONS` index in the header when adding/removing functions.
-10. Run `dm toolkit validate` before finalizing.
-11. Run `go run ./scripts/check_plugin_help.go` to verify help block parsing.
+10. Run `go run ./scripts/check_plugin_help.go` to verify help block parsing.
 
 ## Menu And Output Styling
 - Use shared color helpers from `internal/ui/pretty.go` (for example `Accent`, `Warn`, `Muted`, `Prompt`) for interactive menus.
