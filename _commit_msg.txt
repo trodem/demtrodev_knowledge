@@ -1,0 +1,1 @@
+fix cross-platform toolkitGroupKey and update AGENTS.md with plugin structure and CI info
