@@ -189,6 +189,7 @@ Active prefixes — do not reuse these when creating new toolkits:
 | `start_*` | Start Dev Toolkit | `plugins/Start_Dev_Toolkit.ps1` |
 | `help_*` | Help Toolkit | `plugins/Help_Toolkit.ps1` |
 | `stibs_db_*` | STIBS DB Toolkit | `plugins/STIBS/STIBS_DB_Toolkit.ps1` |
+| `dc_*` | Docker Toolkit | `plugins/Docker_Toolkit.ps1` |
 | `stibs_docker_*` | STIBS Docker Toolkit | `plugins/STIBS/STIBS_Docker_Toolkit.ps1` |
 | `kvpstar_*` | KVP Star Site Toolkit | `plugins/M365/KVP_Star_Site_Toolkit.ps1` |
 | `star_ibs_*` | Star IBS Applications Toolkit | `plugins/M365/Star_IBS_Applications_Toolkit.ps1` |

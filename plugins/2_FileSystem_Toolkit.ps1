@@ -10,6 +10,7 @@
 #   fs_path_open
 #   fs_path_pick
 #   fs_path_cd
+#   fs_path_pwd
 # =============================================================================
 
 Set-StrictMode -Version Latest
@@ -195,4 +196,16 @@ function fs_path_cd {
 
     Set-Location -LiteralPath $path
     Get-Location
+}
+
+<#
+.SYNOPSIS
+Show the current working directory.
+.DESCRIPTION
+Returns the full path of the current working directory.
+.EXAMPLE
+fs_path_pwd
+#>
+function fs_path_pwd {
+    return (Get-Location).Path
 }

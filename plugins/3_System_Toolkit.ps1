@@ -15,6 +15,7 @@
 #   sys_disk
 #   sys_big
 #   sys_size
+#   sys_count
 #   sys_now
 #   sys_log
 #   sys_clip
@@ -357,6 +358,52 @@ function sys_size {
 
 <#
 .SYNOPSIS
+Count files in a directory tree.
+.DESCRIPTION
+Counts files recursively. Optionally filters by file extension.
+.PARAMETER Path
+Directory path.
+.PARAMETER Extension
+Optional file extension filter (e.g. "pdf", ".txt"). Leading dot is optional.
+.EXAMPLE
+sys_count -Path .
+.EXAMPLE
+sys_count -Path C:\Data -Extension pdf
+#>
+function sys_count {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [string]$Extension
+    )
+
+    _assert_path_exists -Path $Path
+
+    $items = Get-ChildItem -Path $Path -Recurse -File -ErrorAction SilentlyContinue
+
+    $filterLabel = "*"
+
+    if (-not [string]::IsNullOrWhiteSpace($Extension)) {
+        $ext = $Extension.TrimStart(".")
+        $items = $items | Where-Object { $_.Extension -eq ".$ext" }
+        $filterLabel = ".$ext"
+    }
+
+    $count = 0
+    if ($null -ne $items) {
+        $count = @($items).Count
+    }
+
+    return [pscustomobject]@{
+        Path      = (Resolve-Path $Path).Path
+        Extension = $filterLabel
+        Count     = $count
+    }
+}
+
+<#
+.SYNOPSIS
 Show current timestamp.
 .EXAMPLE
 sys_now
@@ -446,38 +493,40 @@ function sys_ports {
 <#
 .SYNOPSIS
 Test DNS resolution.
-.PARAMETER Host
+.PARAMETER ComputerName
 Host name to resolve.
 .EXAMPLE
-sys_dns -Host openai.com
+sys_dns -ComputerName openai.com
 #>
 function sys_dns {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Host
+        [Alias("Host")]
+        [string]$ComputerName
     )
-    Resolve-DnsName -Name $Host
+    Resolve-DnsName -Name $ComputerName
 }
 
 <#
 .SYNOPSIS
 Ping a host.
-.PARAMETER Host
+.PARAMETER ComputerName
 Host to ping.
 .PARAMETER Count
 Number of packets (default 4).
 .EXAMPLE
-sys_ping -Host 8.8.8.8
+sys_ping -ComputerName 8.8.8.8
 .EXAMPLE
-sys_ping -Host google.com -Count 10
+sys_ping -ComputerName google.com -Count 10
 #>
 function sys_ping {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Host,
+        [Alias("Host")]
+        [string]$ComputerName,
         [int]$Count = 4
     )
-    Test-Connection -ComputerName $Host -Count $Count
+    Test-Connection -ComputerName $ComputerName -Count $Count
 }
 
 <#

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -323,5 +324,56 @@ func TestListFunctionFiles(t *testing.T) {
 	}
 	if !reflect.DeepEqual(files[0].Functions, []string{"g_log", "g_status"}) {
 		t.Fatalf("unexpected functions: %v", files[0].Functions)
+	}
+}
+
+func TestSplitPowerShellSplatArgs(t *testing.T) {
+	args := []string{"-ComputerName", "192.168.50.235", "-Count", "4", "-Force", "extra"}
+	named, positional := splitPowerShellSplatArgs(args)
+
+	wantNamed := []psNamedArg{
+		{Name: "ComputerName", Value: "192.168.50.235"},
+		{Name: "Count", Value: "4"},
+		{Name: "Force", Value: "extra"},
+	}
+	if !reflect.DeepEqual(named, wantNamed) {
+		t.Fatalf("unexpected named args: got %#v want %#v", named, wantNamed)
+	}
+	if len(positional) != 0 {
+		t.Fatalf("unexpected positional args: %v", positional)
+	}
+}
+
+func TestSplitPowerShellSplatArgs_SwitchAndNegativeNumber(t *testing.T) {
+	args := []string{"-Force", "-Count", "-1", "tail"}
+	named, positional := splitPowerShellSplatArgs(args)
+
+	wantNamed := []psNamedArg{
+		{Name: "Force", IsSwitch: true},
+		{Name: "Count", Value: "-1"},
+	}
+	if !reflect.DeepEqual(named, wantNamed) {
+		t.Fatalf("unexpected named args: got %#v want %#v", named, wantNamed)
+	}
+	if !reflect.DeepEqual(positional, []string{"tail"}) {
+		t.Fatalf("unexpected positional args: %v", positional)
+	}
+}
+
+func TestBuildPowerShellFunctionScript_UsesNamedAndPositionalSplat(t *testing.T) {
+	script := buildPowerShellFunctionScript(
+		[]string{`C:\plugins\system.ps1`},
+		"sys_ping",
+		[]string{"-ComputerName", "192.168.50.235", "-Count", "4"},
+	)
+
+	if !strings.Contains(script, "$dmNamedArgs['ComputerName']='192.168.50.235'") {
+		t.Fatalf("missing ComputerName named assignment:\n%s", script)
+	}
+	if !strings.Contains(script, "$dmNamedArgs['Count']='4'") {
+		t.Fatalf("missing Count named assignment:\n%s", script)
+	}
+	if !strings.Contains(script, "& 'sys_ping' @dmNamedArgs @dmPositionalArgs") {
+		t.Fatalf("missing final named/positional splat invocation:\n%s", script)
 	}
 }

@@ -139,7 +139,7 @@ function stibs_docker_down {
 
 <#
 .SYNOPSIS
-Show status of running containers.
+Show status of running STIBS containers.
 .DESCRIPTION
 Displays docker compose ps for the STIBS development stack.
 .EXAMPLE
@@ -158,11 +158,11 @@ function stibs_docker_status {
 
 <#
 .SYNOPSIS
-Show logs for a specific service.
+Show logs for a STIBS service.
 .DESCRIPTION
-Prints the last 50 lines of logs for the selected container.
+Prints the last 50 lines of logs for the selected STIBS container.
 .PARAMETER Service
-Service name to show logs for.
+STIBS service name to show logs for.
 .EXAMPLE
 stibs_docker_logs -Service backend
 .EXAMPLE
@@ -187,11 +187,11 @@ function stibs_docker_logs {
 
 <#
 .SYNOPSIS
-Restart a specific service container.
+Restart a STIBS service container.
 .DESCRIPTION
-Runs docker compose restart for the selected service.
+Runs docker compose restart for the selected STIBS service.
 .PARAMETER Service
-Service name to restart.
+STIBS service name to restart.
 .EXAMPLE
 stibs_docker_restart -Service backend
 #>
@@ -214,11 +214,11 @@ function stibs_docker_restart {
 
 <#
 .SYNOPSIS
-Build docker image for a specific service.
+Build docker image for a STIBS service.
 .DESCRIPTION
-Runs docker compose build for the selected service. Does not start containers.
+Runs docker compose build for the selected STIBS service. Does not start containers.
 .PARAMETER Service
-Service name to build.
+STIBS service name to build.
 .EXAMPLE
 stibs_docker_build -Service backend
 #>
@@ -237,9 +237,9 @@ function stibs_docker_build {
 
 <#
 .SYNOPSIS
-Build docker images for all services.
+Build docker images for all STIBS services.
 .DESCRIPTION
-Runs docker compose build for the entire stack.
+Runs docker compose build for the entire STIBS stack.
 .EXAMPLE
 stibs_docker_build_all
 #>
@@ -256,12 +256,12 @@ function stibs_docker_build_all {
 
 <#
 .SYNOPSIS
-Execute a command inside a service container.
+Execute a command inside a STIBS service container.
 .DESCRIPTION
-Runs docker compose exec for the selected service with a custom command.
+Runs docker compose exec for the selected STIBS service with a custom command.
 Used for migrations, tests, scripts, and tooling.
 .PARAMETER Service
-Service name to exec into.
+STIBS service name to exec into.
 .PARAMETER Command
 Command and arguments to execute.
 .EXAMPLE
@@ -291,11 +291,11 @@ function stibs_docker_exec {
 
 <#
 .SYNOPSIS
-Open interactive shell inside a service container.
+Open interactive shell inside a STIBS service container.
 .DESCRIPTION
-Runs docker compose exec <service> sh for manual debugging and inspection.
+Runs docker compose exec <service> sh for manual debugging of a STIBS service.
 .PARAMETER Service
-Service name to open a shell into.
+STIBS service name to open a shell into.
 .EXAMPLE
 stibs_docker_shell -Service backend
 #>
