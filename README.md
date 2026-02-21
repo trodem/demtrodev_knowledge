@@ -88,6 +88,17 @@ Config path priority:
 
 OpenAI key can also be set with `OPENAI_API_KEY`.
 
+### Self-evolving agent
+When the agent receives a request that no existing plugin or tool can handle, it can propose creating a new PowerShell function on the fly. The flow:
+1. Agent detects no matching plugin exists and proposes `create_function`.
+2. User confirms whether to proceed.
+3. A specialized builder agent generates the function code following toolkit conventions.
+4. The generated code is shown for approval before writing.
+5. The function is added to an existing toolkit or a new one is created.
+6. The plugin catalog is refreshed and the new function is executed.
+
+This feature is not available in `--json` mode.
+
 ## Tools
 Interactive menu:
 ```bash
