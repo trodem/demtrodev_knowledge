@@ -735,7 +735,8 @@ func buildPluginCatalog(baseDir string) string {
 }
 
 func toolkitGroupKey(filePath string) string {
-	base := filepath.Base(filePath)
+	normalized := strings.ReplaceAll(filePath, "\\", "/")
+	base := filepath.Base(normalized)
 	ext := filepath.Ext(base)
 	return strings.TrimSuffix(base, ext)
 }
