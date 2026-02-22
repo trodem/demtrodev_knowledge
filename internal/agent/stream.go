@@ -105,13 +105,18 @@ func askOllamaStream(prompt string, cfg ollamaConfig, opts AskOptions, onToken T
 	baseURL, model := normalizedOllamaValues(cfg)
 	slog.Debug("LLM stream request", "provider", "ollama", "model", model, "prompt_chars", len(prompt))
 
-	reqBody := map[string]any{
-		"model":  model,
-		"prompt": prompt,
-		"stream": true,
-	}
+	messages := []map[string]string{}
+	systemMsg := "You are a pragmatic coding assistant."
 	if strings.TrimSpace(opts.SystemPrompt) != "" {
-		reqBody["system"] = opts.SystemPrompt
+		systemMsg = opts.SystemPrompt
+	}
+	messages = append(messages, map[string]string{"role": "system", "content": systemMsg})
+	messages = append(messages, map[string]string{"role": "user", "content": prompt})
+
+	reqBody := map[string]any{
+		"model":    model,
+		"messages": messages,
+		"stream":   true,
 	}
 	if opts.JSONMode {
 		reqBody["format"] = "json"
@@ -131,7 +136,7 @@ func askOllamaStream(prompt string, cfg ollamaConfig, opts AskOptions, onToken T
 		return "", model, err
 	}
 	res, err := doWithRetry(func() (*http.Request, error) {
-		req, err := http.NewRequest(http.MethodPost, baseURL+"/api/generate", bytes.NewReader(raw))
+		req, err := http.NewRequest(http.MethodPost, baseURL+"/api/chat", bytes.NewReader(raw))
 		if err != nil {
 			return nil, err
 		}
@@ -150,16 +155,18 @@ func askOllamaStream(prompt string, cfg ollamaConfig, opts AskOptions, onToken T
 	decoder := json.NewDecoder(res.Body)
 	for decoder.More() {
 		var chunk struct {
-			Response string `json:"response"`
-			Done     bool   `json:"done"`
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+			Done bool `json:"done"`
 		}
 		if err := decoder.Decode(&chunk); err != nil {
 			break
 		}
-		if chunk.Response != "" {
-			buf.WriteString(chunk.Response)
+		if chunk.Message.Content != "" {
+			buf.WriteString(chunk.Message.Content)
 			if onToken != nil {
-				onToken(chunk.Response)
+				onToken(chunk.Message.Content)
 			}
 		}
 		if chunk.Done {

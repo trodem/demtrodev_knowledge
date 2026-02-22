@@ -563,13 +563,18 @@ func askOllama(prompt string, cfg ollamaConfig, opts AskOptions) (string, string
 	baseURL, model := normalizedOllamaValues(cfg)
 	slog.Debug("LLM request", "provider", "ollama", "model", model, "prompt_chars", len(prompt))
 
-	reqBody := map[string]any{
-		"model":  model,
-		"prompt": prompt,
-		"stream": false,
-	}
+	messages := []map[string]string{}
+	systemMsg := "You are a pragmatic coding assistant."
 	if strings.TrimSpace(opts.SystemPrompt) != "" {
-		reqBody["system"] = opts.SystemPrompt
+		systemMsg = opts.SystemPrompt
+	}
+	messages = append(messages, map[string]string{"role": "system", "content": systemMsg})
+	messages = append(messages, map[string]string{"role": "user", "content": prompt})
+
+	reqBody := map[string]any{
+		"model":    model,
+		"messages": messages,
+		"stream":   false,
 	}
 	if opts.JSONMode {
 		reqBody["format"] = "json"
@@ -589,7 +594,7 @@ func askOllama(prompt string, cfg ollamaConfig, opts AskOptions) (string, string
 		return "", model, err
 	}
 	res, err := doWithRetry(func() (*http.Request, error) {
-		req, err := http.NewRequest(http.MethodPost, baseURL+"/api/generate", bytes.NewReader(raw))
+		req, err := http.NewRequest(http.MethodPost, baseURL+"/api/chat", bytes.NewReader(raw))
 		if err != nil {
 			return nil, err
 		}
@@ -604,12 +609,14 @@ func askOllama(prompt string, cfg ollamaConfig, opts AskOptions) (string, string
 		return "", model, fmt.Errorf("ollama status: %s", res.Status)
 	}
 	var parsed struct {
-		Response string `json:"response"`
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&parsed); err != nil {
 		return "", model, err
 	}
-	answer := strings.TrimSpace(parsed.Response)
+	answer := strings.TrimSpace(parsed.Message.Content)
 	if answer == "" {
 		return "", model, fmt.Errorf("empty ollama response")
 	}
