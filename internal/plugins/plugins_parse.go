@@ -19,6 +19,37 @@ var (
 	psDefaultValue    = regexp.MustCompile(`\$\w+\s*=\s*(.+)`)
 )
 
+var psSafetyLine = regexp.MustCompile(`(?i)^#\s*Safety:\s*(.+)`)
+
+func ParseToolkitSafety(filePath string) string {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for i := 0; i < 10 && scanner.Scan(); i++ {
+		if m := psSafetyLine.FindStringSubmatch(scanner.Text()); len(m) == 2 {
+			return strings.TrimSpace(m[1])
+		}
+	}
+	return ""
+}
+
+func ToolkitRiskLevel(safety string) string {
+	lc := strings.ToLower(safety)
+	if strings.Contains(lc, "read-only") {
+		return "low"
+	}
+	if strings.Contains(lc, "non-destructive") {
+		return "medium"
+	}
+	if safety == "" {
+		return "medium"
+	}
+	return "high"
+}
+
 type functionHelp struct {
 	Synopsis    string
 	Description string

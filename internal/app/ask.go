@@ -34,6 +34,8 @@ type askActionRecord struct {
 	Result string
 }
 
+const askSessionHistoryMax = 12
+
 type askSessionParams struct {
 	baseDir         string
 	prompt          string
@@ -41,6 +43,7 @@ type askSessionParams struct {
 	confirmTools    bool
 	riskPolicy      string
 	previousPrompts []string
+	sessionHistory  []askActionRecord
 	jsonOut         bool
 	catalog         string
 	toolsCatalog    string
@@ -79,7 +82,7 @@ type askStepContext struct {
 	catalog      *string
 }
 
-func runAskOnceWithSession(p askSessionParams) int {
+func runAskOnceWithSession(p askSessionParams) (int, []askActionRecord) {
 	catalog := p.catalog
 	toolsCatalog := p.toolsCatalog
 	if catalog == "" {
@@ -88,6 +91,7 @@ func runAskOnceWithSession(p askSessionParams) int {
 	if toolsCatalog == "" {
 		toolsCatalog = buildToolsCatalog()
 	}
+	askRiskBaseDir = p.baseDir
 	envContext := buildEnvContext()
 	history := []askActionRecord{}
 
@@ -100,23 +104,30 @@ func runAskOnceWithSession(p askSessionParams) int {
 
 	seenSignatures := map[string]bool{}
 	for step := 1; step <= askMaxSteps; step++ {
-		decisionPrompt := buildAskPlannerPrompt(p.prompt, history, p.previousPrompts)
+		decisionPrompt := buildAskPlannerPrompt(p.prompt, history, p.previousPrompts, p.sessionHistory)
+
+		spinner := ui.NewSpinner("Thinking...")
+		if !p.jsonOut {
+			spinner.Start()
+		}
 		decision, _, err := decideWithCache(decisionPrompt, catalog, toolsCatalog, p.opts, envContext)
+		spinner.Stop()
+
 		if err != nil {
 			out.Error(err.Error())
-			return 1
+			return 1, history
 		}
 		out.ProviderInfo(decision.Provider, decision.Model)
 
 		if decision.Action == "answer" || strings.TrimSpace(decision.Action) == "" {
 			out.Answer(decision.Answer)
-			return 0
+			return 0, history
 		}
 
 		sig := decisionSignature(decision)
 		if sig != "" && seenSignatures[sig] {
 			out.LoopDetected(decision.Answer)
-			return 0
+			return 0, history
 		}
 		if sig != "" {
 			seenSignatures[sig] = true
@@ -147,14 +158,14 @@ func runAskOnceWithSession(p askSessionParams) int {
 			shouldContinue, exitCode = handleCreateFunction(ctx, decision)
 		default:
 			out.Answer(decision.Answer)
-			return 0
+			return 0, history
 		}
 
 		if !shouldContinue {
-			return exitCode
+			return exitCode, history
 		}
 	}
-	return 0
+	return 0, history
 }
 
 func handleRunPlugin(ctx askStepContext, decision agent.DecisionResult) (bool, int) {
@@ -444,9 +455,9 @@ func handleCreateFunction(ctx askStepContext, decision agent.DecisionResult) (bo
 	return true, 0
 }
 
-func buildAskPlannerPrompt(original string, history []askActionRecord, previousPrompts []string) string {
+func buildAskPlannerPrompt(original string, history []askActionRecord, previousPrompts []string, sessionHistory []askActionRecord) string {
 	base := strings.TrimSpace(original)
-	if len(history) == 0 && len(previousPrompts) == 0 {
+	if len(history) == 0 && len(previousPrompts) == 0 && len(sessionHistory) == 0 {
 		return base
 	}
 	lines := []string{
@@ -462,8 +473,21 @@ func buildAskPlannerPrompt(original string, history []askActionRecord, previousP
 			lines = append(lines, fmt.Sprintf("- prev %d: %s", i+1, strings.TrimSpace(p)))
 		}
 	}
+	if len(sessionHistory) > 0 {
+		lines = append(lines, "", "Results from previous turns (context):")
+		for _, h := range sessionHistory {
+			line := fmt.Sprintf("- %s target=%s", h.Action, h.Target)
+			if strings.TrimSpace(h.Args) != "" {
+				line += " args=" + h.Args
+			}
+			if strings.TrimSpace(h.Result) != "" {
+				line += " result=" + h.Result
+			}
+			lines = append(lines, line)
+		}
+	}
 	if len(history) > 0 {
-		lines = append(lines, "", "Actions already executed in this session:")
+		lines = append(lines, "", "Actions already executed in THIS turn:")
 		for _, h := range history {
 			line := fmt.Sprintf("- step %d: %s target=%s", h.Step, h.Action, h.Target)
 			if strings.TrimSpace(h.Args) != "" {
@@ -480,6 +504,25 @@ func buildAskPlannerPrompt(original string, history []askActionRecord, previousP
 		"Decide the next best step. If the task is complete, return action=answer with the final response.",
 	)
 	return strings.Join(lines, "\n")
+}
+
+func appendSessionHistory(session, turn []askActionRecord) []askActionRecord {
+	for _, h := range turn {
+		if strings.HasPrefix(h.Result, "error:") {
+			continue
+		}
+		condensed := askActionRecord{
+			Action: h.Action,
+			Target: h.Target,
+			Args:   h.Args,
+			Result: truncateForHistory(h.Result, 500),
+		}
+		session = append(session, condensed)
+	}
+	if len(session) > askSessionHistoryMax {
+		session = session[len(session)-askSessionHistoryMax:]
+	}
+	return session
 }
 
 func buildEnvContext() string {
@@ -523,14 +566,17 @@ func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmToo
 	fmt.Println("Exit commands: /exit, exit, quit")
 	reader := bufio.NewReader(os.Stdin)
 	previousPrompts := []string{}
+	var sessionHistory []askActionRecord
 
 	if strings.TrimSpace(initialPrompt) != "" {
 		fmt.Printf("%s%s\n", ui.Warn(promptLabel), initialPrompt)
-		_ = runAskOnceWithSession(askSessionParams{
+		_, turnHistory := runAskOnceWithSession(askSessionParams{
 			baseDir: baseDir, prompt: initialPrompt, opts: sessionOpts,
 			confirmTools: confirmTools, riskPolicy: riskPolicy,
-			previousPrompts: previousPrompts, catalog: catalog, toolsCatalog: toolsCatalog,
+			previousPrompts: previousPrompts, sessionHistory: sessionHistory,
+			catalog: catalog, toolsCatalog: toolsCatalog,
 		})
+		sessionHistory = appendSessionHistory(sessionHistory, turnHistory)
 		previousPrompts = append(previousPrompts, initialPrompt)
 	}
 
@@ -548,11 +594,13 @@ func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmToo
 		case "/exit", "exit", "quit":
 			return 0
 		}
-		_ = runAskOnceWithSession(askSessionParams{
+		_, turnHistory := runAskOnceWithSession(askSessionParams{
 			baseDir: baseDir, prompt: prompt, opts: sessionOpts,
 			confirmTools: confirmTools, riskPolicy: riskPolicy,
-			previousPrompts: previousPrompts, catalog: catalog, toolsCatalog: toolsCatalog,
+			previousPrompts: previousPrompts, sessionHistory: sessionHistory,
+			catalog: catalog, toolsCatalog: toolsCatalog,
 		})
+		sessionHistory = appendSessionHistory(sessionHistory, turnHistory)
 		previousPrompts = append(previousPrompts, prompt)
 		if len(previousPrompts) > askPreviousPromptsMax {
 			previousPrompts = previousPrompts[len(previousPrompts)-askPreviousPromptsMax:]

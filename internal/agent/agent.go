@@ -128,6 +128,14 @@ func ResolveSessionProvider(opts AskOptions) (SessionProvider, error) {
 
 	ollamaBase, ollamaModel := resolvedOllama(cfg)
 	openAIBase, openAIModel, openAIKey := resolvedOpenAI(cfg)
+
+	if err := validateBaseURL(ollamaBase, "ollama"); err != nil {
+		fmt.Fprintln(os.Stderr, "Warning:", err)
+	}
+	if err := validateBaseURL(openAIBase, "openai"); err != nil {
+		fmt.Fprintln(os.Stderr, "Warning:", err)
+	}
+
 	reqProvider := strings.ToLower(strings.TrimSpace(opts.Provider))
 	if reqProvider == "" {
 		reqProvider = "openai"
@@ -136,12 +144,12 @@ func ResolveSessionProvider(opts AskOptions) (SessionProvider, error) {
 	switch reqProvider {
 	case "ollama":
 		if err := pingOllama(ollamaBase); err != nil {
-			return SessionProvider{}, fmt.Errorf("ollama unavailable: %w", err)
+			return SessionProvider{}, fmt.Errorf("ollama unavailable: %w\n  Hint: run 'dm doctor' for diagnostics", err)
 		}
 		return newSessionProvider("ollama", ollamaModel, ollamaBase), nil
 	case "openai":
 		if strings.TrimSpace(openAIKey) == "" {
-			return SessionProvider{}, fmt.Errorf("missing OpenAI API key (set in %s or OPENAI_API_KEY)", configPath())
+			return SessionProvider{}, fmt.Errorf("missing OpenAI API key (set in %s or OPENAI_API_KEY)\n  Hint: run 'dm doctor' for diagnostics", configPath())
 		}
 		return newSessionProvider("openai", openAIModel, openAIBase), nil
 	case "auto":
@@ -149,12 +157,22 @@ func ResolveSessionProvider(opts AskOptions) (SessionProvider, error) {
 			return newSessionProvider("ollama", ollamaModel, ollamaBase), nil
 		}
 		if strings.TrimSpace(openAIKey) == "" {
-			return SessionProvider{}, fmt.Errorf("ollama unavailable and OpenAI API key is missing")
+			return SessionProvider{}, fmt.Errorf("ollama unavailable and OpenAI API key is missing\n  Hint: run 'dm doctor' for diagnostics")
 		}
 		return newSessionProvider("openai", openAIModel, openAIBase), nil
 	default:
 		return SessionProvider{}, fmt.Errorf("invalid provider %q (use auto|ollama|openai)", opts.Provider)
 	}
+}
+
+func validateBaseURL(u, label string) error {
+	if strings.TrimSpace(u) == "" {
+		return nil
+	}
+	if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+		return fmt.Errorf("%s base_url %q has no http(s) scheme", label, u)
+	}
+	return nil
 }
 
 func newSessionProvider(provider, model, baseURL string) SessionProvider {
