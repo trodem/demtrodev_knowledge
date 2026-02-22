@@ -35,6 +35,7 @@ var ToolRegistry = []ToolDescriptor{
 	{Key: "y", Name: "system", Synopsis: "Show system/network snapshot", Aliases: []string{"sys", "htop"}, AgentArgs: "", RiskLevel: "low", RiskNote: "read/inspect operation"},
 	{Key: "f", Name: "read", Synopsis: "Read file contents or list directory", Aliases: []string{"cat", "view"}, AgentArgs: "path (required), offset (start line, default 1), limit (max lines, default 100)", RiskLevel: "low", RiskNote: "read/inspect operation"},
 	{Key: "g", Name: "grep", Synopsis: "Search file contents for a pattern", Aliases: []string{"find", "rg"}, AgentArgs: "pattern (required), base (directory, default cwd), ext (filter extension e.g. go/ps1), limit (max results, default 20), case_sensitive (default false)", RiskLevel: "low", RiskNote: "read/inspect operation"},
+	{Key: "d", Name: "diff", Synopsis: "Show git changes or compare two files", Aliases: []string{"changes"}, AgentArgs: "mode (git|files, default git), limit (max diff lines, default 80), file_a (for files mode), file_b (for files mode)", RiskLevel: "low", RiskNote: "read/inspect operation"},
 }
 
 func RunMenu(baseDir string) int {
@@ -103,6 +104,8 @@ func RunByNameWithParamsDetailed(baseDir, name string, params map[string]string)
 		return RunReadAutoDetailed(baseDir, params)
 	case "grep":
 		return RunGrepAutoDetailed(baseDir, params)
+	case "diff":
+		return RunDiffAutoDetailed(baseDir, params)
 	default:
 		return AutoRunResult{Code: RunByName(baseDir, name)}
 	}
@@ -124,9 +127,11 @@ func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
 		return RunRead(reader)
 	case "grep":
 		return RunGrep(reader)
+	case "diff":
+		return RunDiff(reader)
 	default:
 		fmt.Println(ui.Error("Invalid tool:"), name)
-		fmt.Println(ui.Muted("Use: search|rename|recent|clean|system|read|grep"))
+		fmt.Println(ui.Muted("Use: search|rename|recent|clean|system|read|grep|diff"))
 		return 1
 	}
 }
