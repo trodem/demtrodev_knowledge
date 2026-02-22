@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -9,7 +10,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
+
+const pluginExecTimeout = 5 * time.Minute
 
 type psNamedArg struct {
 	Name     string
@@ -82,6 +86,7 @@ func buildPowerShellFunctionScript(profilePaths []string, functionName string, a
 	namedArgs, positionalArgs := splitPowerShellSplatArgs(args)
 
 	lines := []string{
+		"[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new()",
 		"Set-StrictMode -Version Latest",
 		"$ErrorActionPreference='Stop'",
 		"$dmProfilePaths=@(" + strings.Join(quotedPaths, ",") + ")",
@@ -108,7 +113,7 @@ func buildPowerShellFunctionScript(profilePaths []string, functionName string, a
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func runPowerShellFunctionCapture(profilePaths []string, functionName string, args []string) (string, error) {
+func runPowerShellFunctionCapture(profilePaths []string, functionName string, args []string, interactive bool) (string, error) {
 	ps := firstAvailableBinary("pwsh", "powershell")
 	if ps == "" {
 		return "", errors.New("pwsh/powershell executable not found")
@@ -127,19 +132,34 @@ func runPowerShellFunctionCapture(profilePaths []string, functionName string, ar
 		return "", writeErr
 	}
 
-	cmd := exec.Command(ps, "-NoProfile", "-NonInteractive", "-File", tmpPath)
+	ctx, cancel := context.WithTimeout(context.Background(), pluginExecTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, ps, "-NoProfile", "-NonInteractive", "-File", tmpPath)
 	var output bytes.Buffer
 	cmd.Stdout = io.MultiWriter(os.Stdout, &output)
 	cmd.Stderr = io.MultiWriter(os.Stderr, &output)
-	cmd.Stdin = os.Stdin
+	if interactive {
+		cmd.Stdin = os.Stdin
+	}
 	if err := cmd.Run(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return output.String(), &RunError{
+				Err:    errors.New("plugin execution timed out after " + pluginExecTimeout.String()),
+				Output: output.String(),
+			}
+		}
 		return output.String(), &RunError{Err: err, Output: output.String()}
 	}
 	return output.String(), nil
 }
 
-func execPluginCapture(path string, args []string) (string, error) {
+func execPluginCapture(path string, args []string, interactive bool) (string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
+
+	ctx, cancel := context.WithTimeout(context.Background(), pluginExecTimeout)
+	defer cancel()
+
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
@@ -150,17 +170,17 @@ func execPluginCapture(path string, args []string) (string, error) {
 			if ps == "" {
 				return "", errors.New("powershell executable not found")
 			}
-			cmd = exec.Command(ps, "-NoProfile", "-NonInteractive", "-File", path)
+			cmd = exec.CommandContext(ctx, ps, "-NoProfile", "-NonInteractive", "-File", path)
 		case ".sh":
 			sh := firstAvailableBinary("sh", "bash")
 			if sh == "" {
 				return "", errors.New("sh/bash executable not found")
 			}
-			cmd = exec.Command(sh, path)
+			cmd = exec.CommandContext(ctx, sh, path)
 		case ".cmd", ".bat":
-			cmd = exec.Command("cmd", "/C", path)
+			cmd = exec.CommandContext(ctx, "cmd", "/C", path)
 		case ".exe", "", ".out":
-			cmd = exec.Command(path)
+			cmd = exec.CommandContext(ctx, path)
 		default:
 			return "", errors.New("unsupported plugin type on windows")
 		}
@@ -171,11 +191,11 @@ func execPluginCapture(path string, args []string) (string, error) {
 			if ps == "" {
 				return "", errors.New("pwsh/powershell executable not found")
 			}
-			cmd = exec.Command(ps, "-File", path)
+			cmd = exec.CommandContext(ctx, ps, "-File", path)
 		case ".sh":
-			cmd = exec.Command("sh", path)
+			cmd = exec.CommandContext(ctx, "sh", path)
 		default:
-			cmd = exec.Command(path)
+			cmd = exec.CommandContext(ctx, path)
 		}
 	}
 
@@ -186,8 +206,16 @@ func execPluginCapture(path string, args []string) (string, error) {
 	var output bytes.Buffer
 	cmd.Stdout = io.MultiWriter(os.Stdout, &output)
 	cmd.Stderr = io.MultiWriter(os.Stderr, &output)
-	cmd.Stdin = os.Stdin
+	if interactive {
+		cmd.Stdin = os.Stdin
+	}
 	if err := cmd.Run(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return output.String(), &RunError{
+				Err:    errors.New("plugin execution timed out after " + pluginExecTimeout.String()),
+				Output: output.String(),
+			}
+		}
 		return output.String(), &RunError{Err: err, Output: output.String()}
 	}
 	return output.String(), nil

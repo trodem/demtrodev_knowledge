@@ -260,28 +260,42 @@ func buildInfoFileStamps(info Info) map[string]int64 {
 }
 
 func Run(baseDir, name string, args []string) error {
-	r := RunWithOutput(baseDir, name, args)
+	r := runPluginInternal(baseDir, name, args, true)
 	return r.Err
 }
 
 func RunWithOutput(baseDir, name string, args []string) RunResult {
+	return runPluginInternal(baseDir, name, args, true)
+}
+
+func RunWithOutputAgent(baseDir, name string, args []string) RunResult {
+	return runPluginInternal(baseDir, name, args, false)
+}
+
+func runPluginInternal(baseDir, name string, args []string, interactive bool) RunResult {
 	dir := filepath.Join(baseDir, "plugins")
 	candidate, err := findPlugin(dir, name)
 	if err != nil {
 		return RunResult{Err: err}
 	}
 	if candidate == "" {
-		_, loadFiles, found, fErr := findPowerShellFunction(dir, name)
+		fnPath, loadFiles, found, fErr := findPowerShellFunction(dir, name)
 		if fErr != nil {
 			return RunResult{Err: fErr}
 		}
 		if !found {
 			return RunResult{Err: fmt.Errorf("%w: %s", ErrNotFound, name)}
 		}
-		out, runErr := runPowerShellFunctionCapture(loadFiles, name, args)
+		sources := []string{fnPath}
+		if !interactive {
+			sources = []string{fnPath}
+		} else {
+			sources = loadFiles
+		}
+		out, runErr := runPowerShellFunctionCapture(sources, name, args, interactive)
 		return RunResult{Output: out, Err: runErr}
 	}
-	out, runErr := execPluginCapture(candidate, args)
+	out, runErr := execPluginCapture(candidate, args, interactive)
 	return RunResult{Output: out, Err: runErr}
 }
 

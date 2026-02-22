@@ -153,7 +153,7 @@ func parseBuilderJSON(text string) (BuilderResult, error) {
 	if trimmed == "" {
 		return BuilderResult{}, fmt.Errorf("empty builder response")
 	}
-	m := jsonBlockRe.FindString(trimmed)
+	m := findFirstJSONObject(trimmed)
 	if m == "" {
 		return BuilderResult{}, fmt.Errorf("no json object found in builder response")
 	}

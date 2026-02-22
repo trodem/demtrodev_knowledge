@@ -133,6 +133,7 @@ func addCobraSubcommands(root *cobra.Command) {
 	askCmd.Flags().StringVar(&askBaseURL, "base-url", "", "override base URL for selected provider")
 	askCmd.Flags().BoolVar(&askConfirmTools, "confirm-tools", true, "ask confirmation before agent runs a plugin/function/tool")
 	askCmd.Flags().BoolVar(&askNoConfirmTools, "no-confirm-tools", false, "disable confirmation before agent actions")
+	askCmd.MarkFlagsMutuallyExclusive("confirm-tools", "no-confirm-tools")
 	askCmd.Flags().StringVar(&askRiskPolicy, "risk-policy", riskPolicyNormal, "risk policy: strict|normal|off")
 	askCmd.Flags().BoolVar(&askJSON, "json", false, "print structured JSON output (non-interactive only)")
 	root.AddCommand(askCmd)

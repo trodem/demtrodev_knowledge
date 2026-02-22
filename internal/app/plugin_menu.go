@@ -171,7 +171,7 @@ func pluginMenuLabel(i int) string {
 	if i < 26 {
 		return string(rune('a' + i))
 	}
-	return "?"
+	return fmt.Sprintf("%d", i+1)
 }
 
 func splitMenuArgs(s string) ([]string, error) {
