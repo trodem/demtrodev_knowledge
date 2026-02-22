@@ -2,7 +2,9 @@ package tools
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,6 +24,7 @@ type ToolDescriptor struct {
 
 type AutoRunResult struct {
 	Code           int
+	Output         string
 	CanContinue    bool
 	ContinuePrompt string
 	ContinueParams map[string]string
@@ -86,6 +89,32 @@ func RunByName(baseDir, name string) int {
 
 func RunByNameWithParams(baseDir, name string, params map[string]string) int {
 	return RunByNameWithParamsDetailed(baseDir, name, params).Code
+}
+
+func RunByNameWithParamsCapture(baseDir, name string, params map[string]string) AutoRunResult {
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		res := RunByNameWithParamsDetailed(baseDir, name, params)
+		return res
+	}
+	os.Stdout = w
+
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		io.Copy(io.MultiWriter(old, &buf), r)
+		close(done)
+	}()
+
+	res := RunByNameWithParamsDetailed(baseDir, name, params)
+
+	w.Close()
+	<-done
+	os.Stdout = old
+
+	res.Output = buf.String()
+	return res
 }
 
 func RunByNameWithParamsDetailed(baseDir, name string, params map[string]string) AutoRunResult {

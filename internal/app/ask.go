@@ -2,9 +2,7 @@ package app
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -289,30 +287,6 @@ func handleRunPlugin(ctx askStepContext, decision agent.DecisionResult) (bool, i
 	return true, 0
 }
 
-func captureStdout(fn func()) string {
-	old := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		fn()
-		return ""
-	}
-	os.Stdout = w
-
-	var buf bytes.Buffer
-	done := make(chan struct{})
-	go func() {
-		io.Copy(io.MultiWriter(old, &buf), r)
-		close(done)
-	}()
-
-	fn()
-
-	w.Close()
-	<-done
-	os.Stdout = old
-	return buf.String()
-}
-
 func handleRunTool(ctx askStepContext, decision agent.DecisionResult) (bool, int) {
 	toolName := strings.TrimSpace(decision.Tool)
 	if toolName == "" {
@@ -343,10 +317,8 @@ func handleRunTool(ctx askStepContext, decision agent.DecisionResult) (bool, int
 		}
 	}
 
-	var run tools.AutoRunResult
-	captured := captureStdout(func() {
-		run = tools.RunByNameWithParamsDetailed(ctx.baseDir, toolName, decision.ToolArgs)
-	})
+	run := tools.RunByNameWithParamsCapture(ctx.baseDir, toolName, decision.ToolArgs)
+	captured := run.Output
 
 	if run.Code != 0 {
 		stepRecord.Status = "error"
@@ -377,11 +349,8 @@ func handleRunTool(ctx askStepContext, decision agent.DecisionResult) (bool, int
 		if nextChoice == "n" || nextChoice == "no" {
 			break
 		}
-		var contCapture string
-		contCapture = captureStdout(func() {
-			run = tools.RunByNameWithParamsDetailed(ctx.baseDir, toolName, run.ContinueParams)
-		})
-		captured += contCapture
+		run = tools.RunByNameWithParamsCapture(ctx.baseDir, toolName, run.ContinueParams)
+		captured += run.Output
 		if run.Code != 0 {
 			stepRecord.Status = "error"
 			ctx.out.AddStep(stepRecord)
