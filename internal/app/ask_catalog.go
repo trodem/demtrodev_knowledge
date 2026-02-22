@@ -76,23 +76,20 @@ func formatParamDetailsForCatalog(details []plugins.ParamDetail) string {
 	parts := make([]string, 0, len(details))
 	for _, d := range details {
 		s := d.Name
-		if d.Switch {
-			s += " [switch]"
-		} else if d.Type != "" {
-			s += " [" + d.Type + "]"
-		}
 		if d.Mandatory {
-			s += " (required)"
+			s += "*"
+		}
+		if d.Switch {
+			s += "?"
 		}
 		if len(d.ValidateSet) > 0 {
-			s += " values=" + strings.Join(d.ValidateSet, "|")
-		}
-		if d.Default != "" {
-			s += " default=" + d.Default
+			s += "=" + strings.Join(d.ValidateSet, "|")
+		} else if d.Default != "" {
+			s += "=" + d.Default
 		}
 		parts = append(parts, s)
 	}
-	return strings.Join(parts, "; ")
+	return strings.Join(parts, ", ")
 }
 
 func buildToolsCatalog() string {
