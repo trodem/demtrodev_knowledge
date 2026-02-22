@@ -20,12 +20,13 @@ Repository guidelines for automated agents.
   - `ask_risk.go` — risk assessment and confirmation logic for agent actions
   - `ask_output.go` — output rendering for agent responses
   - `ask_toolkit_writer.go` — file writing helpers for the toolkit builder (append function, update index, create new toolkit)
+  - `signal.go` — Ctrl+C signal handler, temp file cleanup on interrupt
 - AI agent logic: `internal/agent/`
   - `agent.go` — planner agent (decides action: answer, run_plugin, run_tool, create_function)
   - `toolkit_builder.go` — builder agent that generates PowerShell functions following toolkit conventions
 - Plugin engine: `internal/plugins/`
-  - `plugins.go` — types, public API (List, GetInfo, Run, RunWithOutput), plugin discovery
-  - `plugins_parse.go` — PowerShell function/help/param parsing
+  - `plugins.go` — types, public API (List, GetInfo, Run, RunWithOutput, RunWithOutputAgent), plugin discovery
+  - `plugins_parse.go` — PowerShell function/help/param parsing, toolkit safety metadata
   - `plugins_exec.go` — execution logic (PowerShell function bridge, script runner, platform dispatch)
   - `cache.go` — entry list and info caching with file-stamp invalidation
 - Config files:
@@ -258,6 +259,7 @@ These mistakes have caused real bugs. Do not repeat them.
 
 ## Menu And Output Styling
 - Use shared color helpers from `internal/ui/pretty.go` (for example `Accent`, `Warn`, `Muted`, `Prompt`) for interactive menus.
+- Use `internal/ui/spinner.go` (`ui.NewSpinner`, `Start`, `Stop`) for progress indication during long operations.
 - Apply the same style across all interactive menus in the project (tools, target actions, plugin menu, and future menus).
 - Keep prompts colorized and explicit (for example `Select option >`, `Args (optional) >`).
 - Use `Prompt(...)` for user input questions, `Warn(...)` for cancellations, and `Error(...)` for invalid selections.

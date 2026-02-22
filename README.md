@@ -73,6 +73,7 @@ Flags:
 - `--confirm-tools` / `--no-confirm-tools`
 - `--risk-policy strict|normal|off`
 - `--json` (structured output, one-shot mode only)
+- `--debug` (enable debug logging to stderr)
 
 Examples:
 ```bash
@@ -125,10 +126,9 @@ Tool aliases:
 - `system/sys/htop`
 
 ## Plugins
-Recommended layout:
-- `plugins/variables.ps1`
-- `plugins/utils.ps1`
-- `plugins/functions/*.ps1`
+Standalone toolkit layout:
+- `plugins/<Name>_Toolkit.ps1` (top-level toolkits)
+- `plugins/<Domain>/<Name>_Toolkit.ps1` (domain-scoped toolkits)
 
 Commands:
 ```bash
