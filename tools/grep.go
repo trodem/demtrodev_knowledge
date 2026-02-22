@@ -10,6 +10,8 @@ import (
 	"unicode/utf8"
 
 	"cli/internal/ui"
+
+	pdflib "github.com/ledongthuc/pdf"
 )
 
 const (
@@ -130,20 +132,28 @@ func grepFiles(base, pattern, ext string, caseSensitive bool, limit int) []grepM
 			}
 		}
 
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
-		if !utf8.Valid(data) {
-			return nil
-		}
-
 		relPath, _ := filepath.Rel(base, path)
 		if relPath == "" {
 			relPath = path
 		}
 
-		lines := strings.Split(string(data), "\n")
+		var lines []string
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			text, pdfErr := extractPDFText(path)
+			if pdfErr != nil || text == "" {
+				return nil
+			}
+			lines = strings.Split(text, "\n")
+		} else {
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return nil
+			}
+			if !utf8.Valid(data) {
+				return nil
+			}
+			lines = strings.Split(string(data), "\n")
+		}
 		for i, line := range lines {
 			compareLine := line
 			if !caseSensitive {
@@ -197,4 +207,26 @@ func printGrepResults(matches []grepMatch, pattern string) {
 	if len(matches) >= grepMaxLimit {
 		fmt.Println(ui.Muted("(results truncated, refine your search)"))
 	}
+}
+
+func extractPDFText(path string) (string, error) {
+	f, r, err := pdflib.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	var buf strings.Builder
+	for i := 1; i <= r.NumPage(); i++ {
+		p := r.Page(i)
+		if p.V.IsNull() {
+			continue
+		}
+		text, err := p.GetPlainText(nil)
+		if err != nil {
+			continue
+		}
+		buf.WriteString(text)
+	}
+	return buf.String(), nil
 }
