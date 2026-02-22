@@ -430,7 +430,27 @@ func sanitizeAnyMap(m map[string]any) map[string]string {
 		if key == "" || v == nil {
 			continue
 		}
-		val := strings.TrimSpace(fmt.Sprint(v))
+		var val string
+		switch tv := v.(type) {
+		case string:
+			val = tv
+		case float64:
+			if tv == float64(int64(tv)) {
+				val = fmt.Sprintf("%d", int64(tv))
+			} else {
+				val = fmt.Sprintf("%g", tv)
+			}
+		case bool:
+			val = fmt.Sprintf("%t", tv)
+		default:
+			raw, err := json.Marshal(tv)
+			if err != nil {
+				val = fmt.Sprint(tv)
+			} else {
+				val = string(raw)
+			}
+		}
+		val = strings.TrimSpace(val)
 		lc := strings.ToLower(val)
 		if val == "" || lc == "<nil>" || lc == "null" {
 			continue
