@@ -42,9 +42,13 @@ type openAIConfig struct {
 }
 
 type AskOptions struct {
-	Provider string
-	Model    string
-	BaseURL  string
+	Provider     string
+	Model        string
+	BaseURL      string
+	Temperature  *float64
+	MaxTokens    int
+	JSONMode     bool
+	SystemPrompt string
 }
 
 type AskResult struct {
@@ -92,24 +96,25 @@ func AskWithOptions(prompt string, opts AskOptions) (AskResult, error) {
 	switch provider {
 	case "ollama":
 		applyOllamaOverrides(&cfg, opts)
-		answer, model, err := askOllama(text, cfg.Ollama)
+		answer, model, err := askOllama(text, cfg.Ollama, opts)
 		if err != nil {
 			return AskResult{}, err
 		}
 		return AskResult{Text: answer, Provider: "ollama", Model: model}, nil
 	case "openai":
 		applyOpenAIOverrides(&cfg, opts)
-		answer, model, err := askOpenAI(text, cfg.OpenAI)
+		answer, model, err := askOpenAI(text, cfg.OpenAI, opts)
 		if err != nil {
 			return AskResult{}, err
 		}
 		return AskResult{Text: answer, Provider: "openai", Model: model}, nil
 	case "auto":
 		applyOllamaOverrides(&cfg, opts)
-		if answer, model, err := askOllama(text, cfg.Ollama); err == nil {
+		if answer, model, err := askOllama(text, cfg.Ollama, opts); err == nil {
 			return AskResult{Text: answer, Provider: "ollama", Model: model}, nil
 		}
-		answer, model, err := askOpenAI(text, cfg.OpenAI)
+		applyOpenAIOverrides(&cfg, opts)
+		answer, model, err := askOpenAI(text, cfg.OpenAI, opts)
 		if err != nil {
 			return AskResult{}, fmt.Errorf("ollama unavailable and openai fallback failed: %w", err)
 		}
@@ -184,11 +189,10 @@ func newSessionProvider(provider, model, baseURL string) SessionProvider {
 	}
 }
 
-func DecideWithPlugins(userPrompt string, pluginCatalog string, toolCatalog string, opts AskOptions, envContext string) (DecisionResult, error) {
-	p := strings.TrimSpace(userPrompt)
-	if p == "" {
-		return DecisionResult{}, fmt.Errorf("prompt is required")
-	}
+const decisionTemperature = 0.2
+const decisionMaxTokens = 1024
+
+func buildDecisionSystemPrompt(pluginCatalog, toolCatalog string) string {
 	if strings.TrimSpace(pluginCatalog) == "" {
 		pluginCatalog = "(none)"
 	}
@@ -228,24 +232,50 @@ func DecideWithPlugins(userPrompt string, pluginCatalog string, toolCatalog stri
 		"- If the user request requires an operation that no existing plugin or tool can handle, return action=create_function.",
 		"- Only use create_function for tasks that genuinely need a new automation capability, not for general knowledge questions.",
 		"- If a plugin requires confirmation or is destructive, mention it in the answer.",
-		"- For search tool use tool_args keys: base, ext, name, sort, limit, offset.",
-		"- For rename tool use tool_args keys: base, from, to, name, case_sensitive.",
-		"- For recent tool use tool_args keys: base, limit, offset.",
-		"- For clean tool use tool_args keys: base, apply (true for delete, otherwise preview).",
+		"- Tool arguments are already listed in the catalog after 'tool_args:'. Use those exact keys.",
 	}
-	if strings.TrimSpace(envContext) != "" {
-		parts = append(parts, "", "Environment context:", envContext)
-	}
-	parts = append(parts, "", "User request:", p)
-	decisionPrompt := strings.Join(parts, "\n")
+	return strings.Join(parts, "\n")
+}
 
-	raw, err := AskWithOptions(decisionPrompt, opts)
+func buildDecisionUserPrompt(userPrompt, envContext string) string {
+	parts := []string{}
+	if strings.TrimSpace(envContext) != "" {
+		parts = append(parts, "Environment context:", envContext, "")
+	}
+	parts = append(parts, "User request:", strings.TrimSpace(userPrompt))
+	return strings.Join(parts, "\n")
+}
+
+func decisionOpts(base AskOptions, systemPrompt string) AskOptions {
+	temp := decisionTemperature
+	return AskOptions{
+		Provider:     base.Provider,
+		Model:        base.Model,
+		BaseURL:      base.BaseURL,
+		Temperature:  &temp,
+		MaxTokens:    decisionMaxTokens,
+		JSONMode:     true,
+		SystemPrompt: systemPrompt,
+	}
+}
+
+func DecideWithPlugins(userPrompt string, pluginCatalog string, toolCatalog string, opts AskOptions, envContext string) (DecisionResult, error) {
+	p := strings.TrimSpace(userPrompt)
+	if p == "" {
+		return DecisionResult{}, fmt.Errorf("prompt is required")
+	}
+
+	systemPrompt := buildDecisionSystemPrompt(pluginCatalog, toolCatalog)
+	userMsg := buildDecisionUserPrompt(p, envContext)
+	dOpts := decisionOpts(opts, systemPrompt)
+
+	raw, err := AskWithOptions(userMsg, dOpts)
 	if err != nil {
 		return DecisionResult{}, err
 	}
 	parsed, err := parseDecisionJSON(raw.Text)
 	if err != nil {
-		repaired, repErr := askDecisionJSONRepair(raw.Text, opts)
+		repaired, repErr := askDecisionJSONRepair(raw.Text, dOpts)
 		if repErr == nil {
 			if parsed2, p2Err := parseDecisionJSON(repaired.Text); p2Err == nil {
 				parsed2.Provider = repaired.Provider
@@ -256,7 +286,6 @@ func DecideWithPlugins(userPrompt string, pluginCatalog string, toolCatalog stri
 				return parsed2, nil
 			}
 		}
-		// fallback to plain answer if model never returned valid JSON
 		return DecisionResult{
 			Action:   "answer",
 			Answer:   raw.Text,
@@ -476,7 +505,7 @@ func doWithRetry(buildReq func() (*http.Request, error)) (*http.Response, error)
 	return nil, lastErr
 }
 
-func askOllama(prompt string, cfg ollamaConfig) (string, string, error) {
+func askOllama(prompt string, cfg ollamaConfig, opts AskOptions) (string, string, error) {
 	baseURL, model := normalizedOllamaValues(cfg)
 	slog.Debug("LLM request", "provider", "ollama", "model", model, "prompt_chars", len(prompt))
 
@@ -484,6 +513,22 @@ func askOllama(prompt string, cfg ollamaConfig) (string, string, error) {
 		"model":  model,
 		"prompt": prompt,
 		"stream": false,
+	}
+	if strings.TrimSpace(opts.SystemPrompt) != "" {
+		reqBody["system"] = opts.SystemPrompt
+	}
+	if opts.JSONMode {
+		reqBody["format"] = "json"
+	}
+	ollamaOpts := map[string]any{}
+	if opts.Temperature != nil {
+		ollamaOpts["temperature"] = *opts.Temperature
+	}
+	if opts.MaxTokens > 0 {
+		ollamaOpts["num_predict"] = opts.MaxTokens
+	}
+	if len(ollamaOpts) > 0 {
+		reqBody["options"] = ollamaOpts
 	}
 	raw, err := json.Marshal(reqBody)
 	if err != nil {
@@ -517,19 +562,33 @@ func askOllama(prompt string, cfg ollamaConfig) (string, string, error) {
 	return answer, model, nil
 }
 
-func askOpenAI(prompt string, cfg openAIConfig) (string, string, error) {
+func askOpenAI(prompt string, cfg openAIConfig, opts AskOptions) (string, string, error) {
 	baseURL, model, apiKey := normalizedOpenAIValues(cfg)
 	if apiKey == "" {
 		return "", "", fmt.Errorf("missing OpenAI API key (set in %s or OPENAI_API_KEY)", configPath())
 	}
 	slog.Debug("LLM request", "provider", "openai", "model", model, "prompt_chars", len(prompt))
 
+	systemMsg := "You are a pragmatic coding assistant."
+	if strings.TrimSpace(opts.SystemPrompt) != "" {
+		systemMsg = opts.SystemPrompt
+	}
+
 	reqBody := map[string]any{
 		"model": model,
 		"messages": []map[string]string{
-			{"role": "system", "content": "You are a pragmatic coding assistant."},
+			{"role": "system", "content": systemMsg},
 			{"role": "user", "content": prompt},
 		},
+	}
+	if opts.Temperature != nil {
+		reqBody["temperature"] = *opts.Temperature
+	}
+	if opts.MaxTokens > 0 {
+		reqBody["max_tokens"] = opts.MaxTokens
+	}
+	if opts.JSONMode {
+		reqBody["response_format"] = map[string]string{"type": "json_object"}
 	}
 	raw, err := json.Marshal(reqBody)
 	if err != nil {
