@@ -149,7 +149,7 @@ Standalone toolkit layout:
 | Archive | `arc_*` | Zip/tar.gz create, extract, list |
 | Scheduler | `sched_*` | Windows Task Scheduler management |
 | Toolkit Manager | `tk_*` | List, create, scaffold, validate toolkits |
-| Help | `help_*` | Runtime introspection and discovery |
+| Help | `help_*` | Runtime introspection, intent search, quickref, env vars, prerequisites |
 | Start Dev | `start_*` | Launch development tools |
 
 Commands:
