@@ -12,6 +12,7 @@
 #   stibs_app_migrations
 #   stibs_app_pending_migrations
 #   stibs_app_urls
+#   stibs_app_open
 # =============================================================================
 
 Set-StrictMode -Version Latest
@@ -302,4 +303,54 @@ function stibs_app_urls {
         [pscustomobject]@{ Service = "MariaDB";      Url = "localhost:13306"; Port = 13306 }
         [pscustomobject]@{ Service = "Redis";         Url = "localhost:16379"; Port = 16379 }
     )
+}
+
+<#
+.SYNOPSIS
+Open a STIBS service in the default browser.
+.DESCRIPTION
+Launches the default browser pointing to the selected STIBS service URL.
+Defaults to the frontend. Use -Service to open a specific endpoint.
+.PARAMETER Service
+Service to open: frontend, backend or api (default: frontend).
+"api" opens the backend Swagger/API docs path.
+.PARAMETER Path
+Optional URL path to append (e.g. "/users", "/api/docs").
+.EXAMPLE
+stibs_app_open
+.EXAMPLE
+stibs_app_open -Service backend
+.EXAMPLE
+stibs_app_open -Service frontend -Path "/login"
+.EXAMPLE
+stibs_app_open -Service api
+#>
+function stibs_app_open {
+    param(
+        [ValidateSet("frontend", "backend", "api")]
+        [string]$Service = "frontend",
+
+        [string]$Path = ""
+    )
+
+    $cfg = _stibs_app_get_config
+
+    $baseUrl = switch ($Service) {
+        "frontend" { $cfg.FrontendUrl }
+        "backend"  { $cfg.BackendUrl }
+        "api"      { $cfg.BackendUrl + "/api" }
+    }
+
+    $url = $baseUrl.TrimEnd('/')
+    if ($Path) {
+        $url += "/" + $Path.TrimStart('/')
+    }
+
+    Start-Process $url
+
+    return [pscustomobject]@{
+        Service = $Service
+        Url     = $url
+        Status  = "Opened in default browser"
+    }
 }

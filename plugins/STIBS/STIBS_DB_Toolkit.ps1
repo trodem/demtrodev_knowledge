@@ -37,6 +37,8 @@
 #   stibs_db_size
 #   stibs_db_table_info
 #   stibs_db_relations
+#   stibs_db_variables
+#   stibs_db_grants
 # =============================================================================
 
 Set-StrictMode -Version Latest
@@ -1010,4 +1012,55 @@ function stibs_db_relations {
     $dbNameLiteral = _stibs_db_escape_sql_literal -Value $cfg.Database
 
     stibs_db_query -Sql "SELECT constraint_name, table_name, column_name, referenced_table_name, referenced_column_name FROM information_schema.key_column_usage WHERE table_schema = '$dbNameLiteral' AND referenced_table_name IS NOT NULL ORDER BY table_name, column_name;"
+}
+
+<#
+.SYNOPSIS
+Show MariaDB server variables.
+.DESCRIPTION
+Returns server configuration variables. Optionally filter by name pattern.
+Useful for debugging charset, timeout, buffer and cache settings.
+.PARAMETER Filter
+Optional variable name pattern (e.g. "innodb", "character", "timeout").
+.EXAMPLE
+stibs_db_variables
+.EXAMPLE
+stibs_db_variables -Filter "character"
+.EXAMPLE
+stibs_db_variables -Filter "timeout"
+#>
+function stibs_db_variables {
+    param([string]$Filter)
+
+    if ($Filter) {
+        $safeLike = _stibs_db_escape_like -Value $Filter
+        stibs_db_query -Sql "SHOW VARIABLES LIKE '%$safeLike%';"
+    } else {
+        stibs_db_query -Sql "SHOW VARIABLES;"
+    }
+}
+
+<#
+.SYNOPSIS
+Show user grants and permissions in MariaDB.
+.DESCRIPTION
+Returns the GRANT statements for the specified user or the current STIBS
+database user. Useful for debugging permission issues.
+.PARAMETER User
+Optional user name. Defaults to the configured STIBS DB user.
+.EXAMPLE
+stibs_db_grants
+.EXAMPLE
+stibs_db_grants -User "root"
+#>
+function stibs_db_grants {
+    param([string]$User)
+
+    if (-not $User) {
+        $cfg = _stibs_db_get_config
+        $User = $cfg.User
+    }
+
+    $safeUser = _stibs_db_escape_sql_literal -Value $User
+    stibs_db_query -Sql "SHOW GRANTS FOR '$safeUser'@'%';"
 }
