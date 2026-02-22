@@ -37,12 +37,12 @@ func shouldConfirmAction(confirmTools bool, riskPolicy, risk string) bool {
 }
 
 func confirmAgentAction(reader *bufio.Reader, risk string) bool {
-	if risk == "high" {
-		fmt.Print(ui.Prompt("Confirm HIGH risk action? [y/N]: "))
+	if strings.ToLower(risk) == "high" {
+		fmt.Print("  " + ui.Error("!") + " " + ui.Prompt("Confirm? [y/N] "))
 		confirm := strings.ToLower(strings.TrimSpace(readLine(reader)))
 		return confirm == "y" || confirm == "yes"
 	}
-	fmt.Print(ui.Prompt("Confirm agent action? [Y/n]: "))
+	fmt.Print("  " + ui.Prompt("Proceed? [Y/n] "))
 	confirm := strings.ToLower(strings.TrimSpace(readLine(reader)))
 	return !(confirm == "n" || confirm == "no")
 }

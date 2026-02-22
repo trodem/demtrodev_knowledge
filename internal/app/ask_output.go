@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -23,42 +24,61 @@ type askOutputWriter interface {
 	Finalize()
 }
 
-type askTTYWriter struct{}
+type askTTYWriter struct {
+	providerShown bool
+}
 
 func (w *askTTYWriter) ProviderInfo(provider, model string) {
-	fmt.Printf("[%s | %s]\n", provider, model)
+	if !w.providerShown {
+		slog.Debug("provider", "name", provider, "model", model)
+	}
 }
 
 func (w *askTTYWriter) StepInfo(step, maxSteps int, summary, reason, risk, riskReason string) {
-	if strings.TrimSpace(reason) != "" {
-		fmt.Println("Reason:", reason)
+	slog.Debug("agent step",
+		"step", fmt.Sprintf("%d/%d", step, maxSteps),
+		"reason", reason,
+		"risk", risk,
+		"risk_reason", riskReason,
+	)
+	fmt.Println()
+	fmt.Printf("  %s %s\n", ui.Accent(">"), humanizeSummary(summary))
+	if strings.ToLower(risk) != "low" {
+		riskLabel := ui.Warn(strings.ToUpper(risk))
+		if strings.ToLower(risk) == "high" {
+			riskLabel = ui.Error(strings.ToUpper(risk))
+		}
+		fmt.Printf("  %s %s\n", ui.Muted("Risk:"), riskLabel)
 	}
-	fmt.Printf("%s %d/%d: %s\n", ui.Accent("Plan step"), step, maxSteps, summary)
-	fmt.Printf("%s %s (%s)\n", ui.Warn("Risk:"), strings.ToUpper(risk), riskReason)
 }
 
 func (w *askTTYWriter) Answer(answer string) {
+	fmt.Println()
 	fmt.Println(answer)
 }
 
 func (w *askTTYWriter) PartialAnswer(answer string) {
 	if strings.TrimSpace(answer) != "" {
-		fmt.Println(answer)
+		fmt.Println()
+		fmt.Println(ui.Muted(answer))
 	}
 }
 
 func (w *askTTYWriter) Error(msg string) {
-	fmt.Println("Error:", msg)
+	fmt.Println()
+	fmt.Println(ui.Error("Error: " + msg))
 }
 
 func (w *askTTYWriter) ErrorWithAnswer(msg, answer string) {
-	fmt.Println("Error:", msg)
+	fmt.Println()
+	fmt.Println(ui.Error("Error: " + msg))
 	if strings.TrimSpace(answer) != "" {
 		fmt.Println(answer)
 	}
 }
 
 func (w *askTTYWriter) Canceled(answer string) {
+	fmt.Println()
 	fmt.Println(ui.Warn("Canceled."))
 	if strings.TrimSpace(answer) != "" {
 		fmt.Println(answer)
@@ -66,11 +86,13 @@ func (w *askTTYWriter) Canceled(answer string) {
 }
 
 func (w *askTTYWriter) MaxStepsReached(_ string) {
-	fmt.Println(ui.Warn("Reached max agent steps; stopping."))
+	fmt.Println()
+	fmt.Println(ui.Warn("Reached max steps."))
 }
 
 func (w *askTTYWriter) LoopDetected(answer string) {
-	fmt.Println(ui.Warn("Agent repeated the same action; stopping to avoid loop."))
+	fmt.Println()
+	fmt.Println(ui.Warn("Stopped to avoid repeated action."))
 	if strings.TrimSpace(answer) != "" {
 		fmt.Println(answer)
 	}
@@ -79,6 +101,34 @@ func (w *askTTYWriter) LoopDetected(answer string) {
 func (w *askTTYWriter) AddStep(_ askJSONStep) {}
 
 func (w *askTTYWriter) Finalize() {}
+
+func humanizeSummary(summary string) string {
+	if strings.HasPrefix(summary, "plugin ") {
+		rest := strings.TrimPrefix(summary, "plugin ")
+		parts := strings.SplitN(rest, " ", 2)
+		name := parts[0]
+		label := "Running " + ui.Accent(name)
+		if len(parts) > 1 && strings.TrimSpace(parts[1]) != "" {
+			label += " " + ui.Muted(parts[1])
+		}
+		return label
+	}
+	if strings.HasPrefix(summary, "tool ") {
+		rest := strings.TrimPrefix(summary, "tool ")
+		parts := strings.SplitN(rest, " ", 2)
+		name := parts[0]
+		label := "Running tool " + ui.Accent(name)
+		if len(parts) > 1 && strings.TrimSpace(parts[1]) != "" {
+			label += " " + ui.Muted(parts[1])
+		}
+		return label
+	}
+	if strings.HasPrefix(summary, "create function:") {
+		desc := strings.TrimPrefix(summary, "create function: ")
+		return "Creating new function: " + ui.Accent(desc)
+	}
+	return summary
+}
 
 type askJSONWriter struct {
 	result askJSONOutput

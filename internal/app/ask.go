@@ -375,14 +375,14 @@ func handleCreateFunction(ctx askStepContext, decision agent.DecisionResult) (bo
 	ctx.out.StepInfo(ctx.step, askMaxSteps, plannedActionSummary(decision), decision.Reason, "HIGH", "generates and writes new code")
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print(ui.Prompt("Create a new function? [y/N]: "))
+	fmt.Print("  " + ui.Prompt("Create? [y/N] "))
 	confirm1 := strings.ToLower(strings.TrimSpace(readLine(reader)))
 	if confirm1 != "y" && confirm1 != "yes" {
 		ctx.out.Canceled(decision.Answer)
 		return false, 0
 	}
 
-	fmt.Println(ui.Muted("Generating function..."))
+	fmt.Println("  " + ui.Muted("Generating function..."))
 	summaries := listToolkitSummaries(ctx.baseDir)
 	builderReq := agent.BuilderRequest{
 		FunctionDescription: desc,
@@ -395,9 +395,9 @@ func handleCreateFunction(ctx askStepContext, decision agent.DecisionResult) (bo
 		return false, 1
 	}
 	if valErr := validatePowerShellSyntax(built.FunctionCode); valErr != nil {
-		fmt.Println(ui.Warn("Generated code has syntax errors:"))
-		fmt.Println(valErr)
-		fmt.Println(ui.Muted("Aborting — code will NOT be written to disk."))
+		fmt.Println("  " + ui.Warn("Syntax errors in generated code:"))
+		fmt.Println("  " + valErr.Error())
+		fmt.Println("  " + ui.Muted("Aborting — code will NOT be written."))
 		*ctx.history = append(*ctx.history, askActionRecord{
 			Step: ctx.step, Action: "create_function", Target: built.FunctionName,
 			Result: "syntax validation failed: " + valErr.Error(),
@@ -406,23 +406,23 @@ func handleCreateFunction(ctx askStepContext, decision agent.DecisionResult) (bo
 	}
 
 	fmt.Println()
-	fmt.Println(ui.Accent("=== Generated function: " + built.FunctionName + " ==="))
+	fmt.Println("  " + ui.Accent("--- "+built.FunctionName+" ---"))
 	fmt.Println(built.FunctionCode)
-	fmt.Println(ui.Accent("=== End of generated code ==="))
+	fmt.Println("  " + ui.Accent("---"))
 	fmt.Println()
 	if strings.TrimSpace(built.Explanation) != "" {
-		fmt.Println(ui.Muted("Explanation: " + built.Explanation))
+		fmt.Println("  " + ui.Muted(built.Explanation))
 	}
 	if built.IsNewToolkit {
-		fmt.Println(ui.Muted("Target: new toolkit " + built.TargetFile + " (prefix: " + built.NewPrefix + "_*)"))
+		fmt.Println("  " + ui.Muted("New toolkit: "+built.TargetFile+" ("+built.NewPrefix+"_*)"))
 	} else {
-		fmt.Println(ui.Muted("Target: " + built.TargetFile))
+		fmt.Println("  " + ui.Muted("Target: "+built.TargetFile))
 	}
 	fmt.Println()
-	fmt.Print(ui.Prompt("Approve and write this code? [y/N]: "))
+	fmt.Print("  " + ui.Prompt("Write code? [y/N] "))
 	confirm2 := strings.ToLower(strings.TrimSpace(readLine(reader)))
 	if confirm2 != "y" && confirm2 != "yes" {
-		fmt.Println(ui.Warn("Code not written. Canceled."))
+		fmt.Println("  " + ui.Warn("Canceled."))
 		return false, 0
 	}
 
@@ -435,7 +435,7 @@ func handleCreateFunction(ctx askStepContext, decision agent.DecisionResult) (bo
 		}
 		if _, statErr := os.Stat(targetPath); os.IsNotExist(statErr) {
 			needsNewToolkit = true
-			fmt.Println(ui.Muted("Target file not found, creating new toolkit instead."))
+			fmt.Println("  " + ui.Muted("Target file not found, creating new toolkit."))
 		}
 	}
 	if needsNewToolkit {
@@ -451,14 +451,14 @@ func handleCreateFunction(ctx askStepContext, decision agent.DecisionResult) (bo
 			ctx.out.Error("writing toolkit: " + writeErr.Error())
 			return false, 1
 		}
-		fmt.Println(ui.Accent("Created: " + writtenPath))
+		fmt.Println("  " + ui.OK("Created: "+writtenPath))
 	} else {
 		if err := appendFunctionToToolkit(targetPath, built.FunctionCode); err != nil {
 			ctx.out.Error("writing function: " + err.Error())
 			return false, 1
 		}
 		_ = updateToolkitFunctionsIndex(targetPath, built.FunctionName)
-		fmt.Println(ui.Accent("Added " + built.FunctionName + " to " + targetPath))
+		fmt.Println("  " + ui.OK("Added "+built.FunctionName+" to "+targetPath))
 	}
 
 	*ctx.catalog = buildPluginCatalog(ctx.baseDir)
@@ -466,7 +466,7 @@ func handleCreateFunction(ctx askStepContext, decision agent.DecisionResult) (bo
 		Step: ctx.step, Action: "create_function", Target: built.FunctionName,
 		Result: "ok; function created",
 	})
-	fmt.Println(ui.Muted("Plugin catalog updated. Running the new function..."))
+	fmt.Println("  " + ui.Muted("Catalog updated. Running..."))
 	return true, 0
 }
 
@@ -589,13 +589,13 @@ func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmToo
 		return 1
 	}
 	sessionOpts := session.Options
-	promptLabel := fmt.Sprintf("ask(%s,%s)> ", session.Provider, session.Model)
+	promptLabel := "ask> "
 
 	catalog := buildPluginCatalog(baseDir)
 	toolsCatalog := buildToolsCatalog()
 
-	fmt.Println("Ask mode. Type your question.")
-	fmt.Println("Exit commands: /exit, exit, quit")
+	fmt.Printf("%s %s %s\n", ui.Accent("dm ask"), ui.Muted("|"), ui.Muted(session.Provider+"/"+session.Model))
+	fmt.Println(ui.Muted("Type your question. Commands: /exit, exit, quit"))
 	reader := bufio.NewReader(os.Stdin)
 	previousPrompts := []string{}
 	var sessionHistory []askActionRecord
