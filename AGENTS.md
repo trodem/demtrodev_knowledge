@@ -16,9 +16,9 @@ Repository guidelines for automated agents.
   - `ask.go` — main agent loop and action handlers (run_plugin, run_tool, create_function, answer)
   - `ask_cache.go` — decision cache (deduplicates identical agent requests)
   - `ask_catalog.go` — builds plugin and tool catalogs for the agent prompt
-  - `ask_helpers.go` — argument formatting, display helpers, mandatory-param pre-check
-  - `ask_risk.go` — risk assessment and confirmation logic for agent actions
-  - `ask_output.go` — output rendering for agent responses
+  - `ask_helpers.go` — argument formatting, display helpers, mandatory-param pre-check, token budget trimming
+  - `ask_risk.go` — risk assessment, toolkit safety parsing, confirmation prompts
+  - `ask_output.go` — TTY and JSON output renderers for agent responses (humanized step descriptions, risk display)
   - `ask_toolkit_writer.go` — file writing helpers for the toolkit builder (append function, update index, create new toolkit)
   - `signal.go` — Ctrl+C signal handler, temp file cleanup on interrupt
 - AI agent logic: `internal/agent/`
@@ -256,6 +256,17 @@ These mistakes have caused real bugs. Do not repeat them.
 4. **Variable expansion in bareword arguments** — `docker exec ... mysql -u$($cfg.User)` silently fails to expand. Use explicit argument variables: `$userArg = "--user=$($cfg.User)"`.
 5. **`$null` comparisons** — Always put `$null` on the left: `$null -eq $x`, not `$x -eq $null`. The latter silently filters arrays instead of comparing.
 6. **Switch parameters in help blocks** — Declare `[switch]$Force`, not `[bool]$Force`. Switch params are passed as `-Force` without a value.
+
+## Agent Output Styling (`dm ask`)
+- Show provider and model **once** at session start (`dm ask | openai/gpt-4o`), not per step.
+- Move `Reason` and step counters to `--debug` only; users should not see internal planner reasoning.
+- Describe steps in natural language: `> Running stibs_db_tables`, not `Plan step 1/4: plugin stibs_db_tables`.
+- Show risk level only when **not** low. Use `Warn` (yellow) for MEDIUM, `Error` (red) for HIGH.
+- Use concise confirm prompts: `Proceed? [Y/n]` for normal risk, `! Confirm? [y/N]` for high risk.
+- Indent agent UI lines with two spaces for visual separation from plugin output.
+- Write spinner frames to **stderr** (not stdout) to keep stdout pipe-clean.
+- Suppress spinner when stdout/stderr are not terminals (piped mode).
+- Final answer prints with a blank line before it for visual breathing room.
 
 ## Menu And Output Styling
 - Use shared color helpers from `internal/ui/pretty.go` (for example `Accent`, `Warn`, `Muted`, `Prompt`) for interactive menus.
