@@ -58,7 +58,7 @@ func RunGrepAuto(baseDir string, params map[string]string) int {
 }
 
 func RunGrepAutoDetailed(baseDir string, params map[string]string) AutoRunResult {
-	pattern := strings.TrimSpace(params["pattern"])
+	pattern := strings.Trim(strings.TrimSpace(params["pattern"]), "*?")
 	if pattern == "" {
 		fmt.Println("Error: pattern is required.")
 		return AutoRunResult{Code: 1}
