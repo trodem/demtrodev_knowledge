@@ -193,3 +193,13 @@ permettendo `dm undo`.
 | Risk assessment (low/medium/high) | Attivo |
 | Streaming (OpenAI + Ollama) | Attivo |
 | Self-evolving (create_function) | Attivo |
+
+### Quality gates
+
+| Check | Quando |
+|-------|--------|
+| `go test ./...` | Pre-push hook, CI |
+| `golangci-lint run` | Pre-push hook, CI |
+| `go vet ./...` | CI |
+| `go test -cover -race ./...` | CI (ubuntu + windows) |
+| `scripts/pre-push.ps1` | Manuale o hook |

@@ -209,6 +209,19 @@ dm completion install --shell zsh
 dm completion install --shell fish
 ```
 
+## Development
+
+Run before pushing:
+```powershell
+.\scripts\pre-push.ps1
+```
+
+Or rely on the git pre-push hook (installed via `.git/hooks/pre-push`), which runs:
+1. `go test ./...`
+2. `golangci-lint run`
+
+Skip with `git push --no-verify`.
+
 ## Repository Layout
 ```text
 .

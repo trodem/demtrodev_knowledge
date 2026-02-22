@@ -350,10 +350,12 @@ When the LLM returns malformed JSON, a repair call is attempted. This is logged 
 
 ## Build And Lint
 - Prefer `go test ./...` before changes are finalized.
+- Run `golangci-lint run` locally before pushing — catches errcheck, unused, ineffassign, staticcheck, govet.
+- A pre-push git hook runs both automatically (`scripts/pre-push.ps1`). Skip with `git push --no-verify`.
 - If you format code, use `gofmt` on touched files only.
 - Do not introduce new dependencies without justification.
 - If build commands are slow, state that you did not run them.
-- CI runs automatically on push/PR to `main` and `develop` via `.github/workflows/ci.yml` (vet, build, test with coverage and race detection).
+- CI runs automatically on push/PR to `main` and `develop` via `.github/workflows/ci.yml` (lint, vet, build, test with coverage and race detection).
 
 ## Commits
 - Use short, imperative messages (e.g., "Refactor config loader").
