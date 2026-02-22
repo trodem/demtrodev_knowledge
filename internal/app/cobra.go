@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -20,6 +21,7 @@ func (e exitCodeError) Error() string {
 }
 
 func Run(args []string) int {
+	setupSignalHandler()
 	root := &cobra.Command{
 		Use:   "dm",
 		Short: "Personal CLI for tools, plugins, and AI helpers",
@@ -44,10 +46,20 @@ func Run(args []string) int {
 		},
 	}
 
+	var debugMode bool
+	root.PersistentFlags().BoolVar(&debugMode, "debug", false, "enable debug logging")
 	root.PersistentFlags().BoolP("tools", "t", false, "shortcut for 'tools' command")
 	root.PersistentFlags().BoolP("plugins", "p", false, "shortcut for 'plugins' command")
 	root.PersistentFlags().BoolP("open", "o", false, "shortcut for 'open' command")
 	root.CompletionOptions.DisableDefaultCmd = true
+
+	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		level := slog.LevelWarn
+		if debugMode {
+			level = slog.LevelDebug
+		}
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
+	}
 
 	addCobraSubcommands(root)
 	addPluginAwareHelpCommand(root)

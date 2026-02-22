@@ -134,6 +134,42 @@ func missingMandatoryParams(info plugins.Info, pluginArgs map[string]string) []s
 
 var missingPathErr = regexp.MustCompile(`(?i)required path '([^']+)' does not exist`)
 
+const promptTokenBudget = 20000
+
+func estimateTokens(s string) int {
+	return len(s) / 4
+}
+
+func trimToTokenBudget(prompt, sessionBlock, previousBlock string, budget int) (string, string) {
+	total := estimateTokens(prompt) + estimateTokens(sessionBlock) + estimateTokens(previousBlock)
+	if total <= budget {
+		return sessionBlock, previousBlock
+	}
+	if estimateTokens(prompt)+estimateTokens(previousBlock) > budget {
+		sessionBlock = ""
+		for estimateTokens(prompt)+estimateTokens(previousBlock) > budget && len(previousBlock) > 0 {
+			idx := strings.Index(previousBlock, "\n")
+			if idx < 0 {
+				previousBlock = ""
+				break
+			}
+			previousBlock = previousBlock[idx+1:]
+		}
+	} else {
+		excess := total - budget
+		charsToDrop := excess * 4
+		if charsToDrop >= len(sessionBlock) {
+			sessionBlock = ""
+		} else {
+			sessionBlock = sessionBlock[charsToDrop:]
+			if idx := strings.Index(sessionBlock, "\n"); idx >= 0 {
+				sessionBlock = sessionBlock[idx+1:]
+			}
+		}
+	}
+	return sessionBlock, previousBlock
+}
+
 func truncateForHistory(s string, maxLen int) string {
 	s = strings.TrimSpace(s)
 	if len(s) <= maxLen {

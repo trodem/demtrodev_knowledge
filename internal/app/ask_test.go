@@ -213,6 +213,28 @@ func TestPlannedActionSummaryPluginArgs(t *testing.T) {
 	}
 }
 
+func TestTrimToTokenBudget_UnderBudget(t *testing.T) {
+	session, prev := trimToTokenBudget("short prompt", "session data", "prev data", 20000)
+	if session != "session data" || prev != "prev data" {
+		t.Fatalf("expected no trimming, got session=%q prev=%q", session, prev)
+	}
+}
+
+func TestTrimToTokenBudget_OverBudget(t *testing.T) {
+	bigSession := strings.Repeat("x", 80001)
+	session, prev := trimToTokenBudget("prompt", bigSession, "prev", 100)
+	total := estimateTokens("prompt") + estimateTokens(session) + estimateTokens(prev)
+	if total > 200 {
+		t.Fatalf("expected trimmed total under budget, got %d tokens", total)
+	}
+}
+
+func TestEstimateTokens(t *testing.T) {
+	if got := estimateTokens("hello world"); got != 2 {
+		t.Fatalf("expected ~2 tokens for 11 chars, got %d", got)
+	}
+}
+
 func TestIsKnownTool(t *testing.T) {
 	known := []string{"search", "s", "rename", "r", "recent", "rec", "backup", "b", "clean", "c", "system", "sys", "htop", "e", "y"}
 	for _, name := range known {

@@ -3,6 +3,7 @@ package app
 import (
 	"bufio"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -106,14 +107,25 @@ func runAskOnceWithSession(p askSessionParams) (int, []askActionRecord) {
 	for step := 1; step <= askMaxSteps; step++ {
 		decisionPrompt := buildAskPlannerPrompt(p.prompt, history, p.previousPrompts, p.sessionHistory)
 
+		slog.Debug("agent step", "step", step, "prompt_len", len(decisionPrompt))
+
 		spinner := ui.NewSpinner("Thinking...")
 		if !p.jsonOut {
 			spinner.Start()
 		}
+		t0 := time.Now()
 		decision, _, err := decideWithCache(decisionPrompt, catalog, toolsCatalog, p.opts, envContext)
 		spinner.Stop()
 
+		slog.Debug("agent decision received",
+			"elapsed_ms", time.Since(t0).Milliseconds(),
+			"action", decision.Action,
+			"plugin", decision.Plugin,
+			"tool", decision.Tool,
+		)
+
 		if err != nil {
+			slog.Debug("agent decision error", "err", err)
 			out.Error(err.Error())
 			return 1, history
 		}
@@ -219,7 +231,10 @@ func handleRunPlugin(ctx askStepContext, decision agent.DecisionResult) (bool, i
 		}
 	}
 
+	slog.Debug("plugin exec", "name", decision.Plugin, "args", runArgs)
+	t0 := time.Now()
 	runResult := plugins.RunWithOutputAgent(ctx.baseDir, decision.Plugin, runArgs)
+	slog.Debug("plugin exec done", "name", decision.Plugin, "elapsed_ms", time.Since(t0).Milliseconds(), "ok", runResult.Err == nil)
 	if runResult.Err != nil {
 		stepRecord.Status = "error"
 		ctx.out.AddStep(stepRecord)
@@ -460,44 +475,61 @@ func buildAskPlannerPrompt(original string, history []askActionRecord, previousP
 	if len(history) == 0 && len(previousPrompts) == 0 && len(sessionHistory) == 0 {
 		return base
 	}
+
+	var sessionLines []string
+	for _, h := range sessionHistory {
+		line := fmt.Sprintf("- %s target=%s", h.Action, h.Target)
+		if strings.TrimSpace(h.Args) != "" {
+			line += " args=" + h.Args
+		}
+		if strings.TrimSpace(h.Result) != "" {
+			line += " result=" + h.Result
+		}
+		sessionLines = append(sessionLines, line)
+	}
+	sessionBlock := strings.Join(sessionLines, "\n")
+
+	var prevLines []string
+	for i, p := range previousPrompts {
+		if strings.TrimSpace(p) == "" {
+			continue
+		}
+		prevLines = append(prevLines, fmt.Sprintf("- prev %d: %s", i+1, strings.TrimSpace(p)))
+	}
+	previousBlock := strings.Join(prevLines, "\n")
+
+	var historyLines []string
+	for _, h := range history {
+		line := fmt.Sprintf("- step %d: %s target=%s", h.Step, h.Action, h.Target)
+		if strings.TrimSpace(h.Args) != "" {
+			line += " args=" + h.Args
+		}
+		if strings.TrimSpace(h.Result) != "" {
+			line += " result=" + h.Result
+		}
+		historyLines = append(historyLines, line)
+	}
+
+	corePrompt := "Original user request:\n" + base
+	if len(historyLines) > 0 {
+		corePrompt += "\n\nActions already executed in THIS turn:\n" + strings.Join(historyLines, "\n")
+	}
+
+	sessionBlock, previousBlock = trimToTokenBudget(corePrompt, sessionBlock, previousBlock, promptTokenBudget)
+
 	lines := []string{
 		"Original user request:",
 		base,
 	}
-	if len(previousPrompts) > 0 {
-		lines = append(lines, "", "Previous prompts in this interactive session:")
-		for i, p := range previousPrompts {
-			if strings.TrimSpace(p) == "" {
-				continue
-			}
-			lines = append(lines, fmt.Sprintf("- prev %d: %s", i+1, strings.TrimSpace(p)))
-		}
+	if previousBlock != "" {
+		lines = append(lines, "", "Previous prompts in this interactive session:", previousBlock)
 	}
-	if len(sessionHistory) > 0 {
-		lines = append(lines, "", "Results from previous turns (context):")
-		for _, h := range sessionHistory {
-			line := fmt.Sprintf("- %s target=%s", h.Action, h.Target)
-			if strings.TrimSpace(h.Args) != "" {
-				line += " args=" + h.Args
-			}
-			if strings.TrimSpace(h.Result) != "" {
-				line += " result=" + h.Result
-			}
-			lines = append(lines, line)
-		}
+	if sessionBlock != "" {
+		lines = append(lines, "", "Results from previous turns (context):", sessionBlock)
 	}
-	if len(history) > 0 {
+	if len(historyLines) > 0 {
 		lines = append(lines, "", "Actions already executed in THIS turn:")
-		for _, h := range history {
-			line := fmt.Sprintf("- step %d: %s target=%s", h.Step, h.Action, h.Target)
-			if strings.TrimSpace(h.Args) != "" {
-				line += " args=" + h.Args
-			}
-			if strings.TrimSpace(h.Result) != "" {
-				line += " result=" + h.Result
-			}
-			lines = append(lines, line)
-		}
+		lines = append(lines, historyLines...)
 	}
 	lines = append(lines,
 		"",

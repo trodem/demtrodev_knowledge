@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -477,6 +478,7 @@ func doWithRetry(buildReq func() (*http.Request, error)) (*http.Response, error)
 
 func askOllama(prompt string, cfg ollamaConfig) (string, string, error) {
 	baseURL, model := normalizedOllamaValues(cfg)
+	slog.Debug("LLM request", "provider", "ollama", "model", model, "prompt_chars", len(prompt))
 
 	reqBody := map[string]any{
 		"model":  model,
@@ -520,6 +522,7 @@ func askOpenAI(prompt string, cfg openAIConfig) (string, string, error) {
 	if apiKey == "" {
 		return "", "", fmt.Errorf("missing OpenAI API key (set in %s or OPENAI_API_KEY)", configPath())
 	}
+	slog.Debug("LLM request", "provider", "openai", "model", model, "prompt_chars", len(prompt))
 
 	reqBody := map[string]any{
 		"model": model,
