@@ -15,7 +15,7 @@ Repository guidelines for automated agents.
   - keep command flows split by concern (for example `ask.go`, `plugin_menu.go`, `profile_ops.go`)
   - `ask.go` — main agent loop and action handlers (run_plugin, run_tool, create_function, answer)
   - `ask_cache.go` — decision cache (deduplicates identical agent requests)
-  - `ask_catalog.go` — builds plugin and tool catalogs for the agent prompt
+  - `ask_catalog.go` — builds plugin and tool catalogs for the agent prompt (compact function-signature format)
   - `ask_helpers.go` — argument formatting, display helpers, mandatory-param pre-check, token budget trimming, file context builder
   - `ask_stream.go` — streaming answer buffering with markdown post-processing
   - `ask_risk.go` — risk assessment, toolkit safety parsing, confirmation prompts
@@ -23,7 +23,8 @@ Repository guidelines for automated agents.
   - `ask_toolkit_writer.go` — file writing helpers for the toolkit builder (append function, update index, create new toolkit)
   - `signal.go` — Ctrl+C signal handler, temp file cleanup on interrupt
 - AI agent logic: `internal/agent/`
-  - `agent.go` — planner agent (decides action: answer, run_plugin, run_tool, create_function)
+  - `agent.go` — planner agent (decides action: answer, run_plugin, run_tool, create_function), prompt builders (`buildDecisionSystemPrompt`, `buildDecisionUserPrompt`), LLM option helpers (`decisionOpts`)
+  - `stream.go` — streaming variants of LLM calls (OpenAI SSE, Ollama chunked)
   - `toolkit_builder.go` — builder agent that generates PowerShell functions following toolkit conventions
 - Plugin engine: `internal/plugins/`
   - `plugins.go` — types, public API (List, GetInfo, Run, RunWithOutput, RunWithOutputAgent), plugin discovery
@@ -265,6 +266,44 @@ These mistakes have caused real bugs. Do not repeat them.
 4. **Variable expansion in bareword arguments** — `docker exec ... mysql -u$($cfg.User)` silently fails to expand. Use explicit argument variables: `$userArg = "--user=$($cfg.User)"`.
 5. **`$null` comparisons** — Always put `$null` on the left: `$null -eq $x`, not `$x -eq $null`. The latter silently filters arrays instead of comparing.
 6. **Switch parameters in help blocks** — Declare `[switch]$Force`, not `[bool]$Force`. Switch params are passed as `-Force` without a value.
+
+## Agent Decision Engine (`dm ask`)
+
+### LLM Parameters
+The planner agent uses tuned parameters for reliable, deterministic decisions:
+- **Temperature 0.2** — low randomness for consistent tool selection.
+- **Max tokens 1024** — caps decision JSON size to prevent runaway responses.
+- **JSON mode** — `response_format: json_object` (OpenAI) / `format: json` (Ollama) guarantees valid JSON output; repair fallback handles edge cases.
+
+### System / User Role Separation
+The LLM receives two distinct messages:
+1. **System message** — fixed instructions: available plugins/tools catalog, JSON action schemas, argument mapping rules, and the structured decision process. Built by `buildDecisionSystemPrompt`.
+2. **User message** — environment context (CWD, OS, datetime), action history for multi-step, and the user's original request. Built by `buildDecisionUserPrompt`.
+
+### Compact Catalog Format
+Plugin/tool catalogs use a function-signature notation to minimize tokens:
+```
+name(Param1*, Param2=default, Flag?): One-line synopsis
+```
+- `*` = required parameter
+- `?` = switch parameter
+- `=val` = default value
+- `=a|b|c` = allowed values (ValidateSet)
+
+Redundant toolkit words are stripped from synopses (e.g. "SharePoint" in `[SharePoint]` group).
+
+### Structured Decision Process
+The system prompt includes a 7-step reasoning guide:
+1. Identify user intent
+2. Find the best toolkit group
+3. Pick the specific function
+4. Check required parameters (ask if missing)
+5. Map values to parameter names
+6. Handle fallbacks (`answer` / `create_function`)
+7. Document reasoning in the `reason` field
+
+### Tool Output Capture
+When the agent executes a tool or plugin, stdout is captured (up to 2KB) and appended to the action history. This allows multi-step reasoning where step N+1 can reference the output of step N.
 
 ## Agent Output Styling (`dm ask`)
 - Show provider and model **once** at session start (`dm ask | openai/gpt-4o`), not per step.

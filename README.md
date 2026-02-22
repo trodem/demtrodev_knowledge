@@ -118,6 +118,7 @@ dm tools clean
 dm tools system
 dm tools read
 dm tools grep
+dm tools diff
 ```
 
 Tool aliases:
@@ -128,6 +129,7 @@ Tool aliases:
 - `system/sys/htop`
 - `read/f/cat/view`
 - `grep/g/find/rg`
+- `diff/d`
 
 ## Plugins
 Standalone toolkit layout:
@@ -151,6 +153,15 @@ Standalone toolkit layout:
 | Toolkit Manager | `tk_*` | List, create, scaffold, validate toolkits |
 | Help | `help_*` | Runtime introspection, intent search, quickref, env vars, prerequisites |
 | Start Dev | `start_*` | Launch development tools |
+| M365 Auth | `m365_*` | Microsoft 365 authentication and session |
+| SharePoint | `spo_*` | SharePoint Online lists, items, files, sites |
+| Power Automate | `flow_*` | Power Automate flow management |
+| Power Apps | `pa_*` | Power Apps environment and app management |
+| KVP Star Site | `kvpstar_*` | KVP Star SharePoint site operations |
+| Star IBS Apps | `star_ibs_*` | Star IBS SharePoint applications |
+| STIBS App | `stibs_app_*` | STIBS application inspection and monitoring |
+| STIBS DB | `stibs_db_*` | STIBS MariaDB database analytics |
+| STIBS Docker | `stibs_docker_*` | STIBS Docker stack management |
 
 Commands:
 ```bash

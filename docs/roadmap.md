@@ -1,7 +1,7 @@
 # DM CLI — Roadmap miglioramenti
 
 Analisi completa delle capability esistenti e proposte di miglioramento.
-Generata il 22 Feb 2026.
+Generata il 22 Feb 2026. Ultimo aggiornamento: 22 Feb 2026.
 
 ---
 
@@ -18,48 +18,47 @@ Salvare la cronologia (es. `~/.config/dm/history/`) permetterebbe:
 
 ### ~~2. Native Function Calling (OpenAI)~~ — SCARTATO
 
-Valutato e scartato. Il sistema prompt-based JSON attuale è più flessibile:
+Valutato e scartato. Il sistema prompt-based JSON attuale e piu flessibile:
 i toolkit vengono auto-scoperti dal catalogo senza modificare codice Go.
 Con native function calling bisognerebbe rigenerare lo schema `tools[]`
 ad ogni nuovo toolkit, perdendo il vantaggio plug-and-play.
-Il repair prompt + fallback a `action=answer` coprono i casi limite.
 
-### 3. Tool `read` — l'agente non può leggere file
+### ~~3. Tool `read` — l'agente non puo leggere file~~ — COMPLETATO
 
-`search` trova file, ma l'agente non può leggerne il contenuto.
-Un tool `read` (con limite di righe) lo renderebbe molto più utile per
-debugging, analisi codice, review.
+Implementato in `tools/read.go`. Legge file (max 256KB, 500 righe) o
+lista directory. L'agente lo usa per analizzare codice, config, log.
 
-### 4. Tool `grep` — ricerca nel contenuto
+### ~~4. Tool `grep` — ricerca nel contenuto~~ — COMPLETATO
 
-`search` cerca solo per nome file. Un tool `grep` (wrapper di
-`filepath.Walk` + `strings.Contains`) permetterebbe all'agente di cercare
-dentro i file.
+Implementato in `tools/grep.go`. Cerca pattern nei file con filtro
+per estensione, case sensitivity, e limite risultati (max 50).
 
 ### 5. Pipe/stdin support
 
 `echo "fix this error" | dm ask` o `git diff | dm ask "review this"`.
 Integrare stdin come contesto rende il CLI componibile con altri strumenti.
 
+### ~~6. Agent precision — temperature, JSON mode, system/user roles~~ — COMPLETATO
+
+Implementato: `temperature: 0.2`, `response_format: json_object` (OpenAI) /
+`format: json` (Ollama), separazione ruoli system/user, `max_tokens: 1024`,
+catalogo compatto con function signature, processo decisionale strutturato
+in 7 passi, cattura output tool nella history per multi-step reasoning.
+
 ---
 
 ## Livello 2 — Impatto medio, sforzo medio
 
-### 6. `dm config` — gestione configurazione
+### 7. `dm config` — gestione configurazione
 
 Oggi bisogna editare `dm.agent.json` a mano.
-Un comando `dm config set openai.model gpt-4o` o `dm config show` sarebbe più pratico.
+Un comando `dm config set openai.model gpt-4o` o `dm config show` sarebbe piu pratico.
 
-### 7. System prompt personalizzabile
+### 8. System prompt personalizzabile
 
-Il system prompt è hardcoded. Permettere di impostarlo in `dm.agent.json`
+Il system prompt e hardcoded. Permettere di impostarlo in `dm.agent.json`
 (`"system_prompt": "Sei un esperto DevOps..."`) rende l'agente adattabile
 al contesto di lavoro.
-
-### 8. Progress bar per operazioni lunghe
-
-`backup` e `search` su directory grandi non danno feedback.
-Una barra di progresso (`[=====>    ] 45%`) migliorerebbe la UX.
 
 ### 9. Rendering tabelle nel markdown
 
@@ -69,48 +68,53 @@ tabelle allineate.
 
 ### 10. Max steps configurabile
 
-Oggi il limite è 4 step hardcoded (`askMaxSteps`). Alcune domande complesse
-richiedono più passaggi. Renderlo configurabile via flag (`--max-steps 8`)
+Oggi il limite e 4 step hardcoded (`askMaxSteps`). Alcune domande complesse
+richiedono piu passaggi. Renderlo configurabile via flag (`--max-steps 8`)
 o config.
+
+### 11. `dm ask --scope` — focus su un toolkit
+
+`dm ask --scope stibs "stato del backend"` riduce il catalogo al solo STIBS,
+meno rumore, piu precisione, meno token.
 
 ---
 
 ## Livello 3 — Idee strategiche
 
-### 11. Plugin `fetch` / HTTP tool
+### 12. Plugin `fetch` / HTTP tool
 
-L'agente non può fare richieste HTTP. Un tool `fetch` (GET con output testo)
-aprirebbe scenari come "controlla se l'API è online", "scarica questo JSON".
+L'agente non puo fare richieste HTTP. Un tool `fetch` (GET con output testo)
+aprirebbe scenari come "controlla se l'API e online", "scarica questo JSON".
 
-### 12. Alias/macro system
+### 13. Alias/macro system
 
 Comandi custom tipo `dm deploy` che mappa a una sequenza di plugin.
 Definibili in config o in un file `aliases.json`.
 
-### 13. `dm init` — setup wizard
+### 14. `dm init` — setup wizard
 
 Creazione guidata di `dm.agent.json` al primo avvio: scelta provider,
 test connessione, selezione modello.
 
-### 14. Multi-provider profiles
+### 15. Multi-provider profiles
 
 Definire profili nominati (`work`, `personal`, `local`) con provider/modello
 diversi e switchare con `--profile work`.
 
-### 15. Undo per operazioni distruttive
+### 16. Undo per operazioni distruttive
 
 `rename` e `clean` potrebbero salvare un manifest di rollback prima di agire,
 permettendo `dm undo`.
 
 ---
 
-## Top 3 raccomandati
+## Top 3 raccomandati (aggiornati)
 
-| Priorità | Feature | Perché |
+| Priorita | Feature | Perche |
 |-----------|-------------------------|------------------------------------------------------|
-| 1 | Tool `read` | Senza questo l'agente è "cieco" — trova file ma non li legge |
-| 2 | Stdin/pipe support | Rende il CLI componibile: `git log \| dm ask "riassumi"` |
-| 3 | Conversazione persistente | Trasforma l'agente da stateless a un vero assistente con memoria |
+| 1 | Stdin/pipe support | Rende il CLI componibile: `git log \| dm ask "riassumi"` |
+| 2 | Conversazione persistente | Trasforma l'agente da stateless a un vero assistente con memoria |
+| 3 | `dm ask --scope` | Riduce token e rumore, migliora precisione per domande specifiche |
 
 ---
 
@@ -120,9 +124,9 @@ permettendo `dm undo`.
 
 | Comando | Descrizione |
 |---------|-------------|
-| `dm ask` | Agente AI (interattivo + one-shot) |
+| `dm ask` | Agente AI (interattivo + one-shot, streaming, multi-step fino a 4 passi) |
 | `dm plugins` | Gestione plugin (list, info, run, menu) |
-| `dm tools` | Tool built-in (search, rename, recent, backup, clean, system) |
+| `dm tools` | Tool built-in (search, rename, recent, clean, system, read, grep, diff) |
 | `dm doctor` | Diagnostica (config, provider, plugin, path) |
 | `dm ps_profile` | Mostra simboli $PROFILE PowerShell |
 | `dm completion` | Genera/installa completions shell |
@@ -134,39 +138,53 @@ permettendo `dm undo`.
 | search | low | Cerca file per nome/estensione |
 | rename | medium | Rinomina batch con preview |
 | recent | low | File modificati di recente |
-| backup | medium | Backup zip di directory |
 | clean | low/high | Rimuove cartelle vuote |
 | system | low | Snapshot sistema/rete |
+| read | low | Legge file o lista directory |
+| grep | low | Cerca pattern nel contenuto dei file |
+| diff | low | Mostra git changes o confronta due file |
 
-### Toolkit PowerShell (14 file)
+### Toolkit PowerShell (22 file)
 
 | Toolkit | Prefisso | Area |
 |---------|----------|------|
-| FileSystem | fs_* | Operazioni su file |
-| System | sys_* | Sistema operativo |
-| Git | g_* | Operazioni Git |
-| Docker | dc_* | Docker Compose |
-| Browser | browser_* | Automazione browser |
-| Excel | excel_* | Operazioni Excel |
-| Help | help_* | Introspezione toolkit |
-| Toolkit Manager | tk_* | Gestione toolkit |
-| Start Dev | dev_* | Ambiente sviluppo |
-| Text | txt_* | Encoding, hashing, testo |
-| KVP Star Site | - | SharePoint M365 |
-| Star IBS Applications | - | Applicazioni M365 |
-| STIBS App | stibs_* | App specifiche |
-| STIBS DB | stibs_* | Database |
-| STIBS Docker | stibs_* | Docker specifico |
+| FileSystem Path | `fs_path_*` | Percorsi di sistema Windows |
+| System | `sys_*` | Sistema operativo e rete locale |
+| Docker | `dc_*` | Docker Compose generico |
+| Browser | `browser_*` | Gestione browser |
+| Excel | `xls_*` | Operazioni su file Excel |
+| Text | `txt_*` | Encoding, hashing, conversione testo |
+| Help | `help_*` | Introspezione, ricerca intento, quickref, env vars, prerequisiti |
+| Toolkit Manager | `tk_*` | Gestione lifecycle toolkit |
+| Start Dev | `start_*` | Launch strumenti sviluppo |
+| Network | `net_*` | HTTP, download, diagnostica rete |
+| Winget | `pkg_*` | Gestione pacchetti Windows |
+| Archive | `arc_*` | Compressione e estrazione archivi |
+| Scheduler | `sched_*` | Windows Task Scheduler |
+| M365 Auth | `m365_*` | Autenticazione Microsoft 365 |
+| SharePoint | `spo_*` | SharePoint Online generico |
+| Power Automate | `flow_*` | Gestione flussi Power Automate |
+| Power Apps | `pa_*` | Gestione Power Apps |
+| KVP Star Site | `kvpstar_*` | SharePoint site specifico |
+| Star IBS Applications | `star_ibs_*` | SharePoint site specifico |
+| STIBS App | `stibs_app_*` | App inspection e monitoring |
+| STIBS DB | `stibs_db_*` | Database MariaDB analytics |
+| STIBS Docker | `stibs_docker_*` | Docker stack STIBS |
 
-### Cosa manca (gap principali)
+### Agent internals
 
-- Nessuna persistenza conversazione su disco
-- Nessun tool per leggere/scrivere file (l'agente è "cieco")
-- Nessuna ricerca nel contenuto dei file (solo per nome)
-- No stdin/pipe support
-- No function calling nativo (usa prompt-based JSON)
-- System prompt hardcoded
-- Max steps hardcoded (4)
-- Nessun rendering tabelle nel terminale
-- Nessun `dm config` / `dm init` / `dm version` dedicato
-- Nessun undo per operazioni distruttive
+| Feature | Stato |
+|---------|-------|
+| Temperature 0.2 | Attivo |
+| JSON mode (response_format) | Attivo |
+| System/user role separation | Attivo |
+| Max tokens 1024 | Attivo |
+| Compact catalog (function signature) | Attivo |
+| Structured decision process (7 steps) | Attivo |
+| Tool output capture in history | Attivo |
+| JSON repair fallback | Attivo |
+| Decision cache (3 min TTL) | Attivo |
+| Loop detection | Attivo |
+| Risk assessment (low/medium/high) | Attivo |
+| Streaming (OpenAI + Ollama) | Attivo |
+| Self-evolving (create_function) | Attivo |
