@@ -371,7 +371,7 @@ func TestDoWithRetry_SuccessOnFirst(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&calls, 1)
 		w.WriteHeader(200)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 	defer srv.Close()
 
@@ -396,7 +396,7 @@ func TestDoWithRetry_RetriesOn500(t *testing.T) {
 			return
 		}
 		w.WriteHeader(200)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 	defer srv.Close()
 
@@ -449,7 +449,7 @@ func TestDoWithRetry_RetriesOn429(t *testing.T) {
 			return
 		}
 		w.WriteHeader(200)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 	defer srv.Close()
 

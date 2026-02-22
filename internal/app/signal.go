@@ -28,12 +28,6 @@ func setupSignalHandler() {
 	})
 }
 
-func registerCleanup(fn func()) {
-	cleanupMu.Lock()
-	defer cleanupMu.Unlock()
-	cleanupFuncs = append(cleanupFuncs, fn)
-}
-
 func runCleanup() {
 	cleanupMu.Lock()
 	fns := make([]func(), len(cleanupFuncs))

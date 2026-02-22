@@ -286,7 +286,7 @@ func runPluginInternal(baseDir, name string, args []string, interactive bool) Ru
 		if !found {
 			return RunResult{Err: fmt.Errorf("%w: %s", ErrNotFound, name)}
 		}
-		sources := []string{fnPath}
+		var sources []string
 		if !interactive {
 			sources = []string{fnPath}
 		} else {

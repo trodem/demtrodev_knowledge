@@ -55,10 +55,6 @@ func (c *decisionCacheStore) Set(key string, value agent.DecisionResult, now tim
 
 var askDecisionCache = newDecisionCacheStore(askDecisionCacheTTL)
 
-func decideWithCache(prompt, pluginCatalog, toolCatalog string, opts agent.AskOptions, envContext string) (agent.DecisionResult, bool, error) {
-	return decideWithCacheStream(prompt, pluginCatalog, toolCatalog, opts, envContext, nil)
-}
-
 func decideWithCacheStream(prompt, pluginCatalog, toolCatalog string, opts agent.AskOptions, envContext string, onToken agent.TokenCallback) (agent.DecisionResult, bool, error) {
 	key := decisionCacheKey(prompt, pluginCatalog, toolCatalog, opts, envContext)
 	now := time.Now()

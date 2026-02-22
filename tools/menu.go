@@ -103,7 +103,7 @@ func RunByNameWithParamsCapture(baseDir, name string, params map[string]string) 
 	var buf bytes.Buffer
 	done := make(chan struct{})
 	go func() {
-		io.Copy(io.MultiWriter(old, &buf), r)
+		_, _ = io.Copy(io.MultiWriter(old, &buf), r)
 		close(done)
 	}()
 

@@ -69,8 +69,5 @@ func supportsColor() bool {
 		return false
 	}
 	term := strings.ToLower(strings.TrimSpace(os.Getenv("TERM")))
-	if term == "dumb" {
-		return false
-	}
-	return true
+	return term != "dumb"
 }

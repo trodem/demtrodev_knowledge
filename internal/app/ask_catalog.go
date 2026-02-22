@@ -88,10 +88,6 @@ func buildPluginCatalogScoped(baseDir, scope string) string {
 	return catalog
 }
 
-func buildPluginCatalog(baseDir string) string {
-	return buildPluginCatalogScoped(baseDir, "")
-}
-
 func scopeMatches(funcName, groupLabel, scope string) bool {
 	if strings.HasPrefix(strings.ToLower(funcName), scope+"_") {
 		return true

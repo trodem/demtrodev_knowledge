@@ -279,8 +279,8 @@ func TestBuildFileContext_MultipleFiles(t *testing.T) {
 	tmp := t.TempDir()
 	p1 := tmp + "/a.txt"
 	p2 := tmp + "/b.txt"
-	os.WriteFile(p1, []byte("alpha"), 0644)
-	os.WriteFile(p2, []byte("beta"), 0644)
+	_ = os.WriteFile(p1, []byte("alpha"), 0644)
+	_ = os.WriteFile(p2, []byte("beta"), 0644)
 	ctx, err := buildFileContext([]string{p1, p2})
 	if err != nil {
 		t.Fatal(err)
@@ -309,7 +309,7 @@ func TestBuildFileContext_TooLarge(t *testing.T) {
 	tmp := t.TempDir()
 	path := tmp + "/big.bin"
 	data := make([]byte, fileContextMaxBytes+1)
-	os.WriteFile(path, data, 0644)
+	_ = os.WriteFile(path, data, 0644)
 	_, err := buildFileContext([]string{path})
 	if err == nil {
 		t.Fatal("expected error for oversized file")
