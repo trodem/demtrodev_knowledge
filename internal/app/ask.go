@@ -51,6 +51,7 @@ type askSessionParams struct {
 	catalog         string
 	toolsCatalog    string
 	fileContext     string
+	scope           string
 }
 
 type askJSONStep struct {
@@ -84,13 +85,14 @@ type askStepContext struct {
 	out          askOutputWriter
 	history      *[]askActionRecord
 	catalog      *string
+	scope        string
 }
 
 func runAskOnceWithSession(p askSessionParams) (int, []askActionRecord) {
 	catalog := p.catalog
 	toolsCatalog := p.toolsCatalog
 	if catalog == "" {
-		catalog = buildPluginCatalog(p.baseDir)
+		catalog = buildPluginCatalogScoped(p.baseDir, p.scope)
 	}
 	if toolsCatalog == "" {
 		toolsCatalog = buildToolsCatalog()
@@ -168,6 +170,7 @@ func runAskOnceWithSession(p askSessionParams) (int, []askActionRecord) {
 			out:          out,
 			history:      &history,
 			catalog:      &catalog,
+			scope:        p.scope,
 		}
 
 		var shouldContinue bool
@@ -513,7 +516,7 @@ func handleCreateFunction(ctx askStepContext, decision agent.DecisionResult) (bo
 		fmt.Println("  " + ui.OK("Added "+built.FunctionName+" to "+targetPath))
 	}
 
-	*ctx.catalog = buildPluginCatalog(ctx.baseDir)
+	*ctx.catalog = buildPluginCatalogScoped(ctx.baseDir, ctx.scope)
 	*ctx.history = append(*ctx.history, askActionRecord{
 		Step: ctx.step, Action: "create_function", Target: built.FunctionName,
 		Result: "ok; function created",
@@ -634,7 +637,7 @@ func decisionSignature(decision agent.DecisionResult) string {
 	}
 }
 
-func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmTools bool, riskPolicy string, initialPrompt string, fileContext string) int {
+func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmTools bool, riskPolicy string, initialPrompt string, fileContext string, scope string) int {
 	session, err := agent.ResolveSessionProvider(opts)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
@@ -643,7 +646,7 @@ func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmToo
 	sessionOpts := session.Options
 	promptLabel := "ask> "
 
-	catalog := buildPluginCatalog(baseDir)
+	catalog := buildPluginCatalogScoped(baseDir, scope)
 	toolsCatalog := buildToolsCatalog()
 
 	fmt.Printf("%s %s %s\n", ui.Accent("dm ask"), ui.Muted("|"), ui.Muted(session.Provider+"/"+session.Model))
@@ -659,7 +662,7 @@ func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmToo
 			confirmTools: confirmTools, riskPolicy: riskPolicy,
 			previousPrompts: previousPrompts, sessionHistory: sessionHistory,
 			catalog: catalog, toolsCatalog: toolsCatalog,
-			fileContext: fileContext,
+			fileContext: fileContext, scope: scope,
 		})
 		sessionHistory = appendSessionHistory(sessionHistory, turnHistory)
 		previousPrompts = append(previousPrompts, initialPrompt)
@@ -684,7 +687,7 @@ func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmToo
 			confirmTools: confirmTools, riskPolicy: riskPolicy,
 			previousPrompts: previousPrompts, sessionHistory: sessionHistory,
 			catalog: catalog, toolsCatalog: toolsCatalog,
-			fileContext: fileContext,
+			fileContext: fileContext, scope: scope,
 		})
 		sessionHistory = appendSessionHistory(sessionHistory, turnHistory)
 		previousPrompts = append(previousPrompts, prompt)

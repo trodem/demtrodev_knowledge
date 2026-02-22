@@ -81,6 +81,7 @@ func addCobraSubcommands(root *cobra.Command) {
 	var askRiskPolicy string
 	var askJSON bool
 	var askFiles []string
+	var askScope string
 	askCmd := &cobra.Command{
 		Use:   "ask <prompt...>",
 		Short: "Ask AI (openai|ollama|auto)",
@@ -120,7 +121,7 @@ func addCobraSubcommands(root *cobra.Command) {
 				code, _ := runAskOnceWithSession(askSessionParams{
 					baseDir: rt.BaseDir, prompt: strings.Join(args, " "), opts: askOpts,
 					confirmTools: confirmTools, riskPolicy: riskPolicy, jsonOut: true,
-					fileContext: fileCtx,
+					fileContext: fileCtx, scope: askScope,
 				})
 				if code != 0 {
 					return exitCodeError{code: code}
@@ -131,7 +132,7 @@ func addCobraSubcommands(root *cobra.Command) {
 			if len(args) > 0 {
 				initialPrompt = strings.Join(args, " ")
 			}
-			code := runAskInteractiveWithRisk(rt.BaseDir, askOpts, confirmTools, riskPolicy, initialPrompt, fileCtx)
+			code := runAskInteractiveWithRisk(rt.BaseDir, askOpts, confirmTools, riskPolicy, initialPrompt, fileCtx, askScope)
 			if code != 0 {
 				return exitCodeError{code: code}
 			}
@@ -147,6 +148,7 @@ func addCobraSubcommands(root *cobra.Command) {
 	askCmd.Flags().StringVar(&askRiskPolicy, "risk-policy", riskPolicyNormal, "risk policy: strict|normal|off")
 	askCmd.Flags().BoolVar(&askJSON, "json", false, "print structured JSON output (non-interactive only)")
 	askCmd.Flags().StringArrayVarP(&askFiles, "file", "f", nil, "attach file as context (repeatable)")
+	askCmd.Flags().StringVarP(&askScope, "scope", "s", "", "limit plugin catalog to a toolkit prefix or domain (e.g. stibs, m365, docker)")
 	root.AddCommand(askCmd)
 }
 

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,6 +24,10 @@ const (
 var (
 	retryDelay       = 2 * time.Second
 	sharedHTTPClient = &http.Client{Timeout: 60 * time.Second}
+
+	configOnce  sync.Once
+	configCached userConfig
+	configErr    error
 )
 
 type userConfig struct {
@@ -83,7 +88,7 @@ func AskWithOptions(prompt string, opts AskOptions) (AskResult, error) {
 		return AskResult{}, fmt.Errorf("prompt is required")
 	}
 
-	cfg, cfgErr := loadUserConfig()
+	cfg, cfgErr := cachedUserConfig()
 	if cfgErr != nil {
 		fmt.Fprintln(os.Stderr, "Warning: failed to load config:", cfgErr)
 	}
@@ -125,7 +130,7 @@ func AskWithOptions(prompt string, opts AskOptions) (AskResult, error) {
 }
 
 func ResolveSessionProvider(opts AskOptions) (SessionProvider, error) {
-	cfg, cfgErr := loadUserConfig()
+	cfg, cfgErr := cachedUserConfig()
 	if cfgErr != nil {
 		fmt.Fprintln(os.Stderr, "Warning: failed to load config:", cfgErr)
 	}
@@ -458,6 +463,13 @@ func loadUserConfig() (userConfig, error) {
 		return cfg, nil
 	}
 	return userConfig{}, nil
+}
+
+func cachedUserConfig() (userConfig, error) {
+	configOnce.Do(func() {
+		configCached, configErr = loadUserConfig()
+	})
+	return configCached, configErr
 }
 
 func configPath() string {

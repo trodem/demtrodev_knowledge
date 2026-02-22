@@ -180,7 +180,7 @@ func AskStream(prompt string, opts AskOptions, onToken TokenCallback) (AskResult
 		return AskResult{}, fmt.Errorf("prompt is required")
 	}
 
-	cfg, cfgErr := loadUserConfig()
+	cfg, cfgErr := cachedUserConfig()
 	if cfgErr != nil {
 		return AskResult{}, cfgErr
 	}

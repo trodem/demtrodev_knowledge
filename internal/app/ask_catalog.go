@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -11,11 +12,15 @@ import (
 	"cli/tools"
 )
 
-func buildPluginCatalog(baseDir string) string {
+const catalogTokenBudget = 6000
+
+func buildPluginCatalogScoped(baseDir, scope string) string {
 	items, err := plugins.ListEntries(baseDir, true)
 	if err != nil || len(items) == 0 {
 		return "(none)"
 	}
+
+	scopeLower := strings.ToLower(strings.TrimSpace(scope))
 
 	type catalogEntry struct {
 		item plugins.Entry
@@ -26,6 +31,13 @@ func buildPluginCatalog(baseDir string) string {
 	groupOrder := []string{}
 
 	for _, item := range items {
+		key := toolkitGroupKey(item.Path)
+		label := toolkitLabel(key)
+
+		if scopeLower != "" && !scopeMatches(item.Name, label, scopeLower) {
+			continue
+		}
+
 		info, _ := plugins.GetInfo(baseDir, item.Name)
 
 		var paramsPart string
@@ -34,9 +46,6 @@ func buildPluginCatalog(baseDir string) string {
 		} else if len(info.Parameters) > 0 {
 			paramsPart = strings.Join(info.Parameters, ", ")
 		}
-
-		key := toolkitGroupKey(item.Path)
-		label := toolkitLabel(key)
 
 		synopsis := strings.TrimSpace(info.Synopsis)
 		synopsis = stripGroupWords(synopsis, label)
@@ -66,7 +75,38 @@ func buildPluginCatalog(baseDir string) string {
 			out = append(out, entry.line)
 		}
 	}
-	return strings.Join(out, "\n")
+	catalog := strings.Join(out, "\n")
+
+	tokens := estimateTokens(catalog)
+	slog.Debug("plugin catalog built", "tokens", tokens, "functions", countCatalogFunctions(out), "scope", scope)
+	if tokens > catalogTokenBudget {
+		slog.Warn("plugin catalog exceeds token budget",
+			"tokens", tokens, "budget", catalogTokenBudget,
+			"hint", "use --scope to reduce catalog size")
+	}
+
+	return catalog
+}
+
+func buildPluginCatalog(baseDir string) string {
+	return buildPluginCatalogScoped(baseDir, "")
+}
+
+func scopeMatches(funcName, groupLabel, scope string) bool {
+	if strings.HasPrefix(strings.ToLower(funcName), scope+"_") {
+		return true
+	}
+	return strings.Contains(strings.ToLower(groupLabel), scope)
+}
+
+func countCatalogFunctions(lines []string) int {
+	n := 0
+	for _, l := range lines {
+		if strings.HasPrefix(l, "- ") {
+			n++
+		}
+	}
+	return n
 }
 
 func toolkitGroupKey(filePath string) string {
