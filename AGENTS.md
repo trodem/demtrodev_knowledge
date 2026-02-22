@@ -228,6 +228,10 @@ Active prefixes — do not reuse these when creating new toolkits:
 | `stibs_db_*` | STIBS DB Toolkit | `plugins/STIBS/STIBS_DB_Toolkit.ps1` |
 | `stibs_docker_*` | STIBS Docker Toolkit | `plugins/STIBS/STIBS_Docker_Toolkit.ps1` |
 | `stibs_app_*` | STIBS App Toolkit | `plugins/STIBS/STIBS_App_Toolkit.ps1` |
+| `m365_*` | M365 Auth Toolkit | `plugins/M365/M365_Auth_Toolkit.ps1` |
+| `spo_*` | SharePoint Toolkit | `plugins/M365/SharePoint_Toolkit.ps1` |
+| `flow_*` | Power Automate Toolkit | `plugins/M365/PowerAutomate_Toolkit.ps1` |
+| `pa_*` | Power Apps Toolkit | `plugins/M365/PowerApps_Toolkit.ps1` |
 | `kvpstar_*` | KVP Star Site Toolkit | `plugins/M365/KVP_Star_Site_Toolkit.ps1` |
 | `star_ibs_*` | Star IBS Applications Toolkit | `plugins/M365/Star_IBS_Applications_Toolkit.ps1` |
 
