@@ -80,6 +80,7 @@ func addCobraSubcommands(root *cobra.Command) {
 	var askNoConfirmTools bool
 	var askRiskPolicy string
 	var askJSON bool
+	var askFiles []string
 	askCmd := &cobra.Command{
 		Use:   "ask <prompt...>",
 		Short: "Ask AI (openai|ollama|auto)",
@@ -104,14 +105,23 @@ func addCobraSubcommands(root *cobra.Command) {
 			if err != nil {
 				return err
 			}
+			var fileCtx string
+			if len(askFiles) > 0 {
+				fc, fcErr := buildFileContext(askFiles)
+				if fcErr != nil {
+					return fcErr
+				}
+				fileCtx = fc
+			}
 			if askJSON {
 				if len(args) == 0 {
 					return fmt.Errorf("--json requires a prompt (non-interactive mode)")
 				}
-			code, _ := runAskOnceWithSession(askSessionParams{
-				baseDir: rt.BaseDir, prompt: strings.Join(args, " "), opts: askOpts,
-				confirmTools: confirmTools, riskPolicy: riskPolicy, jsonOut: true,
-			})
+				code, _ := runAskOnceWithSession(askSessionParams{
+					baseDir: rt.BaseDir, prompt: strings.Join(args, " "), opts: askOpts,
+					confirmTools: confirmTools, riskPolicy: riskPolicy, jsonOut: true,
+					fileContext: fileCtx,
+				})
 				if code != 0 {
 					return exitCodeError{code: code}
 				}
@@ -121,7 +131,7 @@ func addCobraSubcommands(root *cobra.Command) {
 			if len(args) > 0 {
 				initialPrompt = strings.Join(args, " ")
 			}
-			code := runAskInteractiveWithRisk(rt.BaseDir, askOpts, confirmTools, riskPolicy, initialPrompt)
+			code := runAskInteractiveWithRisk(rt.BaseDir, askOpts, confirmTools, riskPolicy, initialPrompt, fileCtx)
 			if code != 0 {
 				return exitCodeError{code: code}
 			}
@@ -136,6 +146,7 @@ func addCobraSubcommands(root *cobra.Command) {
 	askCmd.MarkFlagsMutuallyExclusive("confirm-tools", "no-confirm-tools")
 	askCmd.Flags().StringVar(&askRiskPolicy, "risk-policy", riskPolicyNormal, "risk policy: strict|normal|off")
 	askCmd.Flags().BoolVar(&askJSON, "json", false, "print structured JSON output (non-interactive only)")
+	askCmd.Flags().StringArrayVarP(&askFiles, "file", "f", nil, "attach file as context (repeatable)")
 	root.AddCommand(askCmd)
 }
 

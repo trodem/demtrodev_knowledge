@@ -201,6 +201,30 @@ func printAgentActionError(err error) {
 	}
 }
 
+const fileContextMaxBytes = 32 * 1024
+
+func buildFileContext(paths []string) (string, error) {
+	var parts []string
+	for _, p := range paths {
+		info, err := os.Stat(p)
+		if err != nil {
+			return "", fmt.Errorf("cannot read file %q: %w", p, err)
+		}
+		if info.IsDir() {
+			return "", fmt.Errorf("%q is a directory, not a file", p)
+		}
+		if info.Size() > fileContextMaxBytes {
+			return "", fmt.Errorf("file %q too large (%d bytes, max %d)", p, info.Size(), fileContextMaxBytes)
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return "", fmt.Errorf("cannot read file %q: %w", p, err)
+		}
+		parts = append(parts, fmt.Sprintf("--- file: %s ---\n%s\n--- end ---", p, string(data)))
+	}
+	return "Attached file context:\n" + strings.Join(parts, "\n"), nil
+}
+
 func extractFriendlyError(raw string) string {
 	if m := psMandatoryParam.FindStringSubmatch(raw); len(m) == 2 {
 		return "missing required parameters: " + strings.TrimSpace(m[1])

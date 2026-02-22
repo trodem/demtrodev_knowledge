@@ -48,6 +48,7 @@ type askSessionParams struct {
 	jsonOut         bool
 	catalog         string
 	toolsCatalog    string
+	fileContext     string
 }
 
 type askJSONStep struct {
@@ -94,6 +95,9 @@ func runAskOnceWithSession(p askSessionParams) (int, []askActionRecord) {
 	}
 	askRiskBaseDir = p.baseDir
 	envContext := buildEnvContext()
+	if p.fileContext != "" {
+		envContext += "\n" + p.fileContext
+	}
 	history := []askActionRecord{}
 
 	var out askOutputWriter
@@ -588,7 +592,7 @@ func decisionSignature(decision agent.DecisionResult) string {
 	}
 }
 
-func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmTools bool, riskPolicy string, initialPrompt string) int {
+func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmTools bool, riskPolicy string, initialPrompt string, fileContext string) int {
 	session, err := agent.ResolveSessionProvider(opts)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
@@ -613,6 +617,7 @@ func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmToo
 			confirmTools: confirmTools, riskPolicy: riskPolicy,
 			previousPrompts: previousPrompts, sessionHistory: sessionHistory,
 			catalog: catalog, toolsCatalog: toolsCatalog,
+			fileContext: fileContext,
 		})
 		sessionHistory = appendSessionHistory(sessionHistory, turnHistory)
 		previousPrompts = append(previousPrompts, initialPrompt)
@@ -637,6 +642,7 @@ func runAskInteractiveWithRisk(baseDir string, opts agent.AskOptions, confirmToo
 			confirmTools: confirmTools, riskPolicy: riskPolicy,
 			previousPrompts: previousPrompts, sessionHistory: sessionHistory,
 			catalog: catalog, toolsCatalog: toolsCatalog,
+			fileContext: fileContext,
 		})
 		sessionHistory = appendSessionHistory(sessionHistory, turnHistory)
 		previousPrompts = append(previousPrompts, prompt)

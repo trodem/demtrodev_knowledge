@@ -1,6 +1,7 @@
 package app
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -253,6 +254,65 @@ func TestExtractFriendlyError_Mandatory(t *testing.T) {
 	got := extractFriendlyError(raw)
 	if !strings.Contains(got, "Table Value") {
 		t.Fatalf("expected mandatory params, got %q", got)
+	}
+}
+
+func TestBuildFileContext_SingleFile(t *testing.T) {
+	tmp := t.TempDir()
+	path := tmp + "/test.txt"
+	if err := os.WriteFile(path, []byte("hello world"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := buildFileContext([]string{path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(ctx, "hello world") {
+		t.Fatalf("expected file content in context, got %q", ctx)
+	}
+	if !strings.Contains(ctx, "test.txt") {
+		t.Fatalf("expected filename in context, got %q", ctx)
+	}
+}
+
+func TestBuildFileContext_MultipleFiles(t *testing.T) {
+	tmp := t.TempDir()
+	p1 := tmp + "/a.txt"
+	p2 := tmp + "/b.txt"
+	os.WriteFile(p1, []byte("alpha"), 0644)
+	os.WriteFile(p2, []byte("beta"), 0644)
+	ctx, err := buildFileContext([]string{p1, p2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(ctx, "alpha") || !strings.Contains(ctx, "beta") {
+		t.Fatalf("expected both files in context, got %q", ctx)
+	}
+}
+
+func TestBuildFileContext_MissingFile(t *testing.T) {
+	_, err := buildFileContext([]string{"/nonexistent/file.txt"})
+	if err == nil {
+		t.Fatal("expected error for missing file")
+	}
+}
+
+func TestBuildFileContext_Directory(t *testing.T) {
+	tmp := t.TempDir()
+	_, err := buildFileContext([]string{tmp})
+	if err == nil {
+		t.Fatal("expected error for directory")
+	}
+}
+
+func TestBuildFileContext_TooLarge(t *testing.T) {
+	tmp := t.TempDir()
+	path := tmp + "/big.bin"
+	data := make([]byte, fileContextMaxBytes+1)
+	os.WriteFile(path, data, 0644)
+	_, err := buildFileContext([]string{path})
+	if err == nil {
+		t.Fatal("expected error for oversized file")
 	}
 }
 
