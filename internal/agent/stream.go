@@ -237,9 +237,12 @@ func DecideWithPluginsStream(userPrompt, pluginCatalog, toolCatalog string, opts
 	}
 	parsed, err := parseDecisionJSON(raw.Text)
 	if err != nil {
+		slog.Warn("JSON parse failed, attempting repair", "error", err)
+		slog.Debug("raw LLM output for repair", "text", truncateLog(raw.Text, 300))
 		repaired, repErr := askDecisionJSONRepair(raw.Text, dOpts)
 		if repErr == nil {
 			if parsed2, p2Err := parseDecisionJSON(repaired.Text); p2Err == nil {
+				slog.Warn("JSON repair succeeded", "action", parsed2.Action)
 				parsed2.Provider = repaired.Provider
 				parsed2.Model = repaired.Model
 				if parsed2.Action != "run_plugin" && parsed2.Action != "run_tool" && parsed2.Action != "create_function" {
@@ -248,6 +251,7 @@ func DecideWithPluginsStream(userPrompt, pluginCatalog, toolCatalog string, opts
 				return parsed2, nil
 			}
 		}
+		slog.Warn("JSON repair failed, falling back to raw answer")
 		return DecisionResult{
 			Action:   "answer",
 			Answer:   raw.Text,
