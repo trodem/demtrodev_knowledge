@@ -113,8 +113,10 @@ func runAskOnceWithSession(p askSessionParams) (int, []askActionRecord) {
 		if !p.jsonOut {
 			spinner.Start()
 		}
+
+		streamer := newAnswerStreamer(spinner, p.jsonOut)
 		t0 := time.Now()
-		decision, _, err := decideWithCache(decisionPrompt, catalog, toolsCatalog, p.opts, envContext)
+		decision, _, err := decideWithCacheStream(decisionPrompt, catalog, toolsCatalog, p.opts, envContext, streamer.OnToken)
 		spinner.Stop()
 
 		slog.Debug("agent decision received",
@@ -132,7 +134,11 @@ func runAskOnceWithSession(p askSessionParams) (int, []askActionRecord) {
 		out.ProviderInfo(decision.Provider, decision.Model)
 
 		if decision.Action == "answer" || strings.TrimSpace(decision.Action) == "" {
-			out.Answer(decision.Answer)
+			if streamer.DidStream() {
+				streamer.Finish()
+			} else {
+				out.Answer(decision.Answer)
+			}
 			return 0, history
 		}
 
