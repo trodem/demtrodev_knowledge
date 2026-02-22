@@ -31,13 +31,13 @@ type AutoRunResult struct {
 }
 
 var ToolRegistry = []ToolDescriptor{
-	{Key: "s", Name: "search", Synopsis: "Search files by name/extension", Aliases: []string{"s"}, AgentArgs: "base, ext, name, sort, limit, offset", RiskLevel: "low", RiskNote: "read/inspect operation"},
+	{Key: "s", Name: "search", Synopsis: "Find files by filename (not content). Use when looking for files whose NAME contains a word.", Aliases: []string{"s"}, AgentArgs: "base, ext, name (substring match on filename), sort, limit, offset", RiskLevel: "low", RiskNote: "read/inspect operation"},
 	{Key: "r", Name: "rename", Synopsis: "Batch rename files with preview", Aliases: []string{"r"}, AgentArgs: "base, from, to, name, case_sensitive", RiskLevel: "medium", RiskNote: "batch rename files"},
 	{Key: "e", Name: "recent", Synopsis: "Show recent files", Aliases: []string{"rec"}, AgentArgs: "base, limit, offset", RiskLevel: "low", RiskNote: "read/inspect operation"},
 	{Key: "c", Name: "clean", Synopsis: "Delete empty folders", Aliases: []string{"c"}, AgentArgs: "base, apply (true for delete, otherwise preview)", RiskLevel: "low", RiskNote: "preview only"},
 	{Key: "y", Name: "system", Synopsis: "Show system/network snapshot", Aliases: []string{"sys", "htop"}, AgentArgs: "", RiskLevel: "low", RiskNote: "read/inspect operation"},
 	{Key: "f", Name: "read", Synopsis: "Read file contents or list directory", Aliases: []string{"cat", "view"}, AgentArgs: "path (required), offset (start line, default 1), limit (max lines, default 100)", RiskLevel: "low", RiskNote: "read/inspect operation"},
-	{Key: "g", Name: "grep", Synopsis: "Search file contents for a pattern", Aliases: []string{"find", "rg"}, AgentArgs: "pattern (required), base (directory, default cwd), ext (filter extension e.g. go/ps1), limit (max results, default 20), case_sensitive (default false)", RiskLevel: "low", RiskNote: "read/inspect operation"},
+	{Key: "g", Name: "grep", Synopsis: "Search INSIDE files for text. Use when looking for a string in file contents, not filenames.", Aliases: []string{"find", "rg"}, AgentArgs: "pattern (required, text to find inside files), base (directory, default cwd), ext (filter extension e.g. go/ps1), limit (max results, default 20), case_sensitive (default false)", RiskLevel: "low", RiskNote: "read/inspect operation"},
 	{Key: "d", Name: "diff", Synopsis: "Show git changes or compare two files", Aliases: []string{"changes"}, AgentArgs: "mode (git|files, default git), limit (max diff lines, default 80), file_a (for files mode), file_b (for files mode)", RiskLevel: "low", RiskNote: "read/inspect operation"},
 }
 
