@@ -54,13 +54,13 @@ func (w *askTTYWriter) StepInfo(step, maxSteps int, summary, reason, risk, riskR
 
 func (w *askTTYWriter) Answer(answer string) {
 	fmt.Println()
-	fmt.Println(answer)
+	fmt.Println(ui.RenderMarkdown(answer))
 }
 
 func (w *askTTYWriter) PartialAnswer(answer string) {
 	if strings.TrimSpace(answer) != "" {
 		fmt.Println()
-		fmt.Println(ui.Muted(answer))
+		fmt.Println(ui.Muted(ui.RenderMarkdown(answer)))
 	}
 }
 
@@ -73,7 +73,7 @@ func (w *askTTYWriter) ErrorWithAnswer(msg, answer string) {
 	fmt.Println()
 	fmt.Println(ui.Error("Error: " + msg))
 	if strings.TrimSpace(answer) != "" {
-		fmt.Println(answer)
+		fmt.Println(ui.RenderMarkdown(answer))
 	}
 }
 
@@ -81,7 +81,7 @@ func (w *askTTYWriter) Canceled(answer string) {
 	fmt.Println()
 	fmt.Println(ui.Warn("Canceled."))
 	if strings.TrimSpace(answer) != "" {
-		fmt.Println(answer)
+		fmt.Println(ui.RenderMarkdown(answer))
 	}
 }
 
@@ -94,7 +94,7 @@ func (w *askTTYWriter) LoopDetected(answer string) {
 	fmt.Println()
 	fmt.Println(ui.Warn("Stopped to avoid repeated action."))
 	if strings.TrimSpace(answer) != "" {
-		fmt.Println(answer)
+		fmt.Println(ui.RenderMarkdown(answer))
 	}
 }
 

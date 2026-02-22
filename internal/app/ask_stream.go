@@ -9,15 +9,15 @@ import (
 )
 
 type answerStreamer struct {
-	mu          sync.Mutex
-	buf         strings.Builder
-	detected    bool
-	printing    bool
-	printed     bool
-	escaped     bool
-	startedLine bool
-	spinner     *ui.Spinner
-	jsonOut     bool
+	mu        sync.Mutex
+	buf       strings.Builder
+	answerBuf strings.Builder
+	detected  bool
+	printing  bool
+	printed   bool
+	escaped   bool
+	spinner   *ui.Spinner
+	jsonOut   bool
 }
 
 func newAnswerStreamer(spinner *ui.Spinner, jsonOut bool) *answerStreamer {
@@ -66,15 +66,15 @@ func (s *answerStreamer) emitAnswerChars(token string) {
 			s.escaped = false
 			switch ch {
 			case 'n':
-				s.emit("\n")
+				s.answerBuf.WriteString("\n")
 			case 't':
-				s.emit("\t")
+				s.answerBuf.WriteString("\t")
 			case '"':
-				s.emit("\"")
+				s.answerBuf.WriteString("\"")
 			case '\\':
-				s.emit("\\")
+				s.answerBuf.WriteString("\\")
 			default:
-				s.emit(string(ch))
+				s.answerBuf.WriteRune(ch)
 			}
 			continue
 		}
@@ -86,16 +86,8 @@ func (s *answerStreamer) emitAnswerChars(token string) {
 			s.printing = false
 			return
 		}
-		s.emit(string(ch))
+		s.answerBuf.WriteRune(ch)
 	}
-}
-
-func (s *answerStreamer) emit(text string) {
-	if !s.startedLine {
-		fmt.Println()
-		s.startedLine = true
-	}
-	fmt.Print(text)
 }
 
 func (s *answerStreamer) DidStream() bool {
@@ -107,8 +99,13 @@ func (s *answerStreamer) DidStream() bool {
 func (s *answerStreamer) Finish() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.printed && s.startedLine {
+	if !s.printed {
+		return
+	}
+	text := strings.TrimSpace(s.answerBuf.String())
+	if text != "" {
 		fmt.Println()
+		fmt.Println(ui.RenderMarkdown(text))
 	}
 }
 
