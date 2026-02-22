@@ -130,6 +130,9 @@ func runAskOnceWithSession(p askSessionParams) (int, []askActionRecord) {
 			"action", decision.Action,
 			"plugin", decision.Plugin,
 			"tool", decision.Tool,
+			"plugin_args", formatPluginArgs(decision.PluginArgs),
+			"tool_args", formatToolArgs(decision.ToolArgs),
+			"reason", decision.Reason,
 		)
 
 		if err != nil {

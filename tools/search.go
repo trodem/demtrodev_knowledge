@@ -71,7 +71,7 @@ func RunSearchAutoDetailed(baseDir string, params map[string]string) AutoRunResu
 		base = currentWorkingDir(baseDir)
 	}
 	base = normalizeAgentPath(base, baseDir)
-	name := strings.TrimSpace(params["name"])
+	name := strings.Trim(strings.TrimSpace(params["name"]), "*?")
 	ext := strings.TrimSpace(params["ext"])
 	sortBy := strings.TrimSpace(params["sort"])
 	if sortBy == "" {
