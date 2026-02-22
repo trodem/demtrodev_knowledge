@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -26,17 +27,29 @@ func buildPluginCatalog(baseDir string) string {
 
 	for _, item := range items {
 		info, _ := plugins.GetInfo(baseDir, item.Name)
-		line := fmt.Sprintf("- %s", item.Name)
-		if strings.TrimSpace(info.Synopsis) != "" {
-			line += ": " + info.Synopsis
-		}
+
+		var paramsPart string
 		if len(info.ParamDetails) > 0 {
-			line += " | params: " + formatParamDetailsForCatalog(info.ParamDetails)
+			paramsPart = formatParamDetailsForCatalog(info.ParamDetails)
 		} else if len(info.Parameters) > 0 {
-			line += " | params: " + strings.Join(info.Parameters, "; ")
+			paramsPart = strings.Join(info.Parameters, ", ")
 		}
 
 		key := toolkitGroupKey(item.Path)
+		label := toolkitLabel(key)
+
+		synopsis := strings.TrimSpace(info.Synopsis)
+		synopsis = stripGroupWords(synopsis, label)
+
+		var line string
+		if paramsPart != "" {
+			line = fmt.Sprintf("- %s(%s): %s", item.Name, paramsPart, synopsis)
+		} else if synopsis != "" {
+			line = fmt.Sprintf("- %s: %s", item.Name, synopsis)
+		} else {
+			line = fmt.Sprintf("- %s", item.Name)
+		}
+
 		if _, exists := groups[key]; !exists {
 			groupOrder = append(groupOrder, key)
 		}
@@ -70,6 +83,28 @@ func toolkitLabel(groupKey string) string {
 	}
 	name = strings.TrimSuffix(name, "_Toolkit")
 	return strings.ReplaceAll(name, "_", " ")
+}
+
+func stripGroupWords(synopsis, groupLabel string) string {
+	if synopsis == "" || groupLabel == "" {
+		return synopsis
+	}
+	words := strings.Fields(groupLabel)
+	result := synopsis
+	for _, w := range words {
+		if len(w) < 3 {
+			continue
+		}
+		re := "(?i)\\b" + regexp.QuoteMeta(w) + "\\b\\s*"
+		result = regexp.MustCompile(re).ReplaceAllString(result, "")
+	}
+	result = strings.TrimSpace(result)
+	result = strings.TrimPrefix(result, "- ")
+	result = strings.TrimSpace(result)
+	if result == "" {
+		return synopsis
+	}
+	return result
 }
 
 func formatParamDetailsForCatalog(details []plugins.ParamDetail) string {
