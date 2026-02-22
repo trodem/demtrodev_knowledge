@@ -72,10 +72,10 @@ Oggi il limite e 4 step hardcoded (`askMaxSteps`). Alcune domande complesse
 richiedono piu passaggi. Renderlo configurabile via flag (`--max-steps 8`)
 o config.
 
-### 11. `dm ask --scope` — focus su un toolkit
+### ~~11. `dm ask --scope` — focus su un toolkit~~ — COMPLETATO
 
-`dm ask --scope stibs "stato del backend"` riduce il catalogo al solo STIBS,
-meno rumore, piu precisione, meno token.
+Implementato: `dm ask --scope stibs "stato del backend"` filtra il catalogo
+per prefisso funzione o nome gruppo toolkit. Flag `-s` / `--scope`.
 
 ---
 
@@ -114,7 +114,7 @@ permettendo `dm undo`.
 |-----------|-------------------------|------------------------------------------------------|
 | 1 | Stdin/pipe support | Rende il CLI componibile: `git log \| dm ask "riassumi"` |
 | 2 | Conversazione persistente | Trasforma l'agente da stateless a un vero assistente con memoria |
-| 3 | `dm ask --scope` | Riduce token e rumore, migliora precisione per domande specifiche |
+| 3 | Stdin/pipe support | Rende il CLI componibile con altri strumenti |
 
 ---
 
@@ -182,8 +182,13 @@ permettendo `dm undo`.
 | Compact catalog (function signature) | Attivo |
 | Structured decision process (7 steps) | Attivo |
 | Tool output capture in history | Attivo |
-| JSON repair fallback | Attivo |
+| JSON repair fallback (with slog.Warn) | Attivo |
 | Decision cache (3 min TTL) | Attivo |
+| Config cache (sync.Once per session) | Attivo |
+| Catalog token budget (6000 warning) | Attivo |
+| `--scope` catalog filtering | Attivo |
+| sanitizeAnyMap (json.Marshal) | Attivo |
+| Ollama /api/chat (uniform format) | Attivo |
 | Loop detection | Attivo |
 | Risk assessment (low/medium/high) | Attivo |
 | Streaming (OpenAI + Ollama) | Attivo |

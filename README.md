@@ -72,6 +72,7 @@ Flags:
 - `--confirm-tools` / `--no-confirm-tools`
 - `--risk-policy strict|normal|off`
 - `-f`, `--file <path>` (attach file as context, repeatable)
+- `-s`, `--scope <prefix>` (limit catalog to a toolkit domain, e.g. `stibs`, `m365`, `docker`)
 - `--json` (structured output, one-shot mode only)
 - `--debug` (enable debug logging to stderr)
 
@@ -82,6 +83,7 @@ dm ask --provider auto "cerca i file pdf in Downloads"
 dm ask --json "trova file recenti in Downloads"
 dm ask -f config.json "analizza questo file"
 dm ask -f main.go -f go.mod "confronta questi file"
+dm ask --scope stibs "stato del database"
 ```
 
 Config path priority:

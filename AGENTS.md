@@ -304,6 +304,22 @@ The system prompt includes a 7-step reasoning guide:
 
 ### Tool Output Capture
 When the agent executes a tool or plugin, stdout is captured (up to 2KB) and appended to the action history. This allows multi-step reasoning where step N+1 can reference the output of step N.
+Tool output capture is encapsulated in the `tools` package via `RunByNameWithParamsCapture` (returns `AutoRunResult.Output`).
+
+### Scope Filtering (`--scope`)
+`dm ask --scope stibs "stato del database"` limits the plugin catalog to functions matching the scope.
+Matching: prefix (e.g. `stibs_*`) or toolkit group label (e.g. "STIBS"). Reduces tokens and improves precision.
+Without `--scope`, the full catalog is used (backward compatible).
+
+### Provider Uniformity
+Both OpenAI and Ollama use the chat messages format (`messages: [{role, content}]`).
+Ollama uses `/api/chat` (not `/api/generate`) for consistent behavior across providers.
+
+### Config Caching
+User config (`dm.agent.json`) is loaded once per process via `sync.Once` and reused across all LLM calls in a session.
+
+### JSON Repair Visibility
+When the LLM returns malformed JSON, a repair call is attempted. This is logged via `slog.Warn` so the user is aware of the extra API call and cost.
 
 ## Agent Output Styling (`dm ask`)
 - Show provider and model **once** at session start (`dm ask | openai/gpt-4o`), not per step.
