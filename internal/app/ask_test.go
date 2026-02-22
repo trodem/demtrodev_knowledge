@@ -317,7 +317,7 @@ func TestBuildFileContext_TooLarge(t *testing.T) {
 }
 
 func TestIsKnownTool(t *testing.T) {
-	known := []string{"search", "s", "rename", "r", "recent", "rec", "backup", "b", "clean", "c", "system", "sys", "htop", "e", "y"}
+	known := []string{"search", "s", "rename", "r", "recent", "rec", "clean", "c", "system", "sys", "htop", "e", "y"}
 	for _, name := range known {
 		if !isKnownTool(name) {
 			t.Fatalf("expected %q to be a known tool", name)

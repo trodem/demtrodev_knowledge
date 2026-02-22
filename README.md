@@ -47,7 +47,6 @@ dm tools
 dm plugins
 dm ask
 dm doctor
-dm toolkit
 dm completion
 dm ps_profile
 dm cp profile
@@ -115,23 +114,43 @@ Run directly:
 dm tools search
 dm tools rename
 dm tools recent
-dm tools backup
 dm tools clean
 dm tools system
+dm tools read
+dm tools grep
 ```
 
 Tool aliases:
 - `search/s`
 - `rename/r`
 - `recent/rec`
-- `backup/b`
 - `clean/c`
 - `system/sys/htop`
+- `read/f/cat/view`
+- `grep/g/find/rg`
 
 ## Plugins
 Standalone toolkit layout:
 - `plugins/<Name>_Toolkit.ps1` (top-level toolkits)
 - `plugins/<Domain>/<Name>_Toolkit.ps1` (domain-scoped toolkits)
+
+### Toolkits
+
+| Toolkit | Prefix | Area |
+|---|---|---|
+| System | `sys_*` | OS, processes, clipboard, network diagnostics, WiFi |
+| FileSystem | `fs_path_*` | Windows special paths, navigation |
+| Docker | `dc_*` | Docker Compose orchestration |
+| Browser | `browser_*` | Browser launch, close, localhost |
+| Excel | `xls_*` | Excel operations |
+| Text | `txt_*` | Encoding, hashing, UUID, JSON, URL |
+| Network | `net_*` | HTTP requests, download, SSL certs, speed test |
+| Winget | `pkg_*` | Software install, update, search via winget |
+| Archive | `arc_*` | Zip/tar.gz create, extract, list |
+| Scheduler | `sched_*` | Windows Task Scheduler management |
+| Toolkit Manager | `tk_*` | List, create, scaffold, validate toolkits |
+| Help | `help_*` | Runtime introspection and discovery |
+| Start Dev | `start_*` | Launch development tools |
 
 Commands:
 ```bash

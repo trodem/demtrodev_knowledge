@@ -253,7 +253,7 @@ func newToolsCommand() *cobra.Command {
 		Use:     "tools [tool]",
 		Aliases: []string{"tool"},
 		Short:   "Run tools menu or a specific tool",
-		Long:    "Interactive tools for search, rename, recent files, backup, cleanup, and system snapshot.",
+		Long:    "Interactive tools for search, rename, recent files, cleanup, and system snapshot.",
 		Example: "dm tools\ndm tools search\ndm tools system\ndm -t s",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -319,14 +319,6 @@ func newToolsCommand() *cobra.Command {
 		"dm tools recent",
 		"recent",
 		"rec",
-	)
-	addToolSubcommand(
-		"backup",
-		"Create a folder zip backup",
-		"Asks for source directory and output directory, then creates a timestamped zip.",
-		"dm tools backup",
-		"backup",
-		"b",
 	)
 	addToolSubcommand(
 		"clean",

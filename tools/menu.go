@@ -31,7 +31,6 @@ var ToolRegistry = []ToolDescriptor{
 	{Key: "s", Name: "search", Synopsis: "Search files by name/extension", Aliases: []string{"s"}, AgentArgs: "base, ext, name, sort, limit, offset", RiskLevel: "low", RiskNote: "read/inspect operation"},
 	{Key: "r", Name: "rename", Synopsis: "Batch rename files with preview", Aliases: []string{"r"}, AgentArgs: "base, from, to, name, case_sensitive", RiskLevel: "medium", RiskNote: "batch rename files"},
 	{Key: "e", Name: "recent", Synopsis: "Show recent files", Aliases: []string{"rec"}, AgentArgs: "base, limit, offset", RiskLevel: "low", RiskNote: "read/inspect operation"},
-	{Key: "b", Name: "backup", Synopsis: "Create a folder zip backup", Aliases: []string{"b"}, AgentArgs: "source, output", RiskLevel: "medium", RiskNote: "writes backup archive"},
 	{Key: "c", Name: "clean", Synopsis: "Delete empty folders", Aliases: []string{"c"}, AgentArgs: "base, apply (true for delete, otherwise preview)", RiskLevel: "low", RiskNote: "preview only"},
 	{Key: "y", Name: "system", Synopsis: "Show system/network snapshot", Aliases: []string{"sys", "htop"}, AgentArgs: "", RiskLevel: "low", RiskNote: "read/inspect operation"},
 	{Key: "f", Name: "read", Synopsis: "Read file contents or list directory", Aliases: []string{"cat", "view"}, AgentArgs: "path (required), offset (start line, default 1), limit (max lines, default 100)", RiskLevel: "low", RiskNote: "read/inspect operation"},
@@ -98,8 +97,6 @@ func RunByNameWithParamsDetailed(baseDir, name string, params map[string]string)
 		return RunRecentAutoDetailed(baseDir, params)
 	case "clean":
 		return AutoRunResult{Code: RunCleanEmptyAuto(baseDir, params)}
-	case "backup":
-		return AutoRunResult{Code: RunBackupAuto(baseDir, params)}
 	case "system":
 		return AutoRunResult{Code: RunSystemAuto()}
 	case "read":
@@ -119,8 +116,6 @@ func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
 		return RunRename(baseDir, reader)
 	case "recent":
 		return RunRecent(reader)
-	case "backup":
-		return RunPackBackup(baseDir, reader)
 	case "clean":
 		return RunCleanEmpty(reader)
 	case "system":
@@ -131,7 +126,7 @@ func RunByNameWithReader(baseDir, name string, reader *bufio.Reader) int {
 		return RunGrep(reader)
 	default:
 		fmt.Println(ui.Error("Invalid tool:"), name)
-		fmt.Println(ui.Muted("Use: search|rename|recent|backup|clean|system|read|grep"))
+		fmt.Println(ui.Muted("Use: search|rename|recent|clean|system|read|grep"))
 		return 1
 	}
 }
