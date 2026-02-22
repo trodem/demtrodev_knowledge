@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"regexp"
 	"sort"
@@ -133,6 +134,9 @@ func missingMandatoryParams(info plugins.Info, pluginArgs map[string]string) []s
 }
 
 var missingPathErr = regexp.MustCompile(`(?i)required path '([^']+)' does not exist`)
+var psMandatoryParam = regexp.MustCompile(`(?i)missing mandatory parameters?:\s*(.+)`)
+var psParamNotFound = regexp.MustCompile(`(?i)cannot be found that matches parameter name '([^']+)'`)
+var psGeneralError = regexp.MustCompile(`(?m)^\s*\|\s+(.+)$`)
 
 const promptTokenBudget = 20000
 
@@ -179,11 +183,44 @@ func truncateForHistory(s string, maxLen int) string {
 }
 
 func printAgentActionError(err error) {
-	fmt.Fprintln(os.Stderr, "Error:", err)
-	combined := strings.TrimSpace(err.Error() + "\n" + plugins.ErrorOutput(err))
-	m := missingPathErr.FindStringSubmatch(combined)
-	if len(m) == 2 {
-		fmt.Println(ui.Warn("Missing required path: " + m[1]))
-		fmt.Println(ui.Muted("Fix the path in plugin variables/config, then retry."))
+	raw := plugins.ErrorOutput(err)
+	combined := strings.TrimSpace(err.Error() + "\n" + raw)
+
+	slog.Debug("plugin error trace", "raw", combined)
+
+	friendly := extractFriendlyError(combined)
+	if friendly != "" {
+		fmt.Fprintln(os.Stderr, "  "+ui.Error("Error:")+" "+friendly)
+	} else {
+		fmt.Fprintln(os.Stderr, "  "+ui.Error("Error:")+" plugin execution failed")
 	}
+
+	if m := missingPathErr.FindStringSubmatch(combined); len(m) == 2 {
+		fmt.Println("  " + ui.Warn("Missing path: "+m[1]))
+		fmt.Println("  " + ui.Muted("Check plugin config, then retry."))
+	}
+}
+
+func extractFriendlyError(raw string) string {
+	if m := psMandatoryParam.FindStringSubmatch(raw); len(m) == 2 {
+		return "missing required parameters: " + strings.TrimSpace(m[1])
+	}
+	if m := psParamNotFound.FindStringSubmatch(raw); len(m) == 2 {
+		return "unknown parameter '" + m[1] + "'"
+	}
+	if m := missingPathErr.FindStringSubmatch(raw); len(m) == 2 {
+		return "path not found: " + m[1]
+	}
+	matches := psGeneralError.FindAllStringSubmatch(raw, -1)
+	for i := len(matches) - 1; i >= 0; i-- {
+		msg := strings.TrimSpace(matches[i][1])
+		if msg != "" && !strings.HasPrefix(msg, "~") && !strings.HasPrefix(msg, "&") {
+			return msg
+		}
+	}
+	errMsg := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), "exit status 1"))
+	if errMsg != "" && len(errMsg) < 200 {
+		return errMsg
+	}
+	return ""
 }

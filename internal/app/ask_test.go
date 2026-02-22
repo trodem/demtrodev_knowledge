@@ -235,6 +235,27 @@ func TestEstimateTokens(t *testing.T) {
 	}
 }
 
+func TestExtractFriendlyError_MissingParam(t *testing.T) {
+	raw := `xls_sheets: C:\Temp\dm-plugin-123.ps1:11:1
+Line |
+  11 |  & 'xls_sheets' @dmNamedArgs @dmPositionalArgs
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | A parameter cannot be found that matches parameter name 'Name'.
+exit status 1`
+	got := extractFriendlyError(raw)
+	if !strings.Contains(got, "'Name'") {
+		t.Fatalf("expected friendly error about 'Name', got %q", got)
+	}
+}
+
+func TestExtractFriendlyError_Mandatory(t *testing.T) {
+	raw := `Cannot process command because of one or more missing mandatory parameters: Table Value.`
+	got := extractFriendlyError(raw)
+	if !strings.Contains(got, "Table Value") {
+		t.Fatalf("expected mandatory params, got %q", got)
+	}
+}
+
 func TestIsKnownTool(t *testing.T) {
 	known := []string{"search", "s", "rename", "r", "recent", "rec", "backup", "b", "clean", "c", "system", "sys", "htop", "e", "y"}
 	for _, name := range known {
