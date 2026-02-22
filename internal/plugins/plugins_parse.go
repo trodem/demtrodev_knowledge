@@ -219,11 +219,28 @@ func parsePowerShellParamBlock(path, functionName string) []ParamDetail {
 		}
 	}
 
+	for i, raw := range blockLines {
+		line := strings.TrimSpace(raw)
+		if i == 0 {
+			lc := strings.ToLower(line)
+			if strings.HasPrefix(lc, "param") {
+				if idx := strings.Index(line, "("); idx >= 0 {
+					line = strings.TrimSpace(line[idx+1:])
+				}
+			}
+		}
+		blockLines[i] = line
+	}
+	if n := len(blockLines); n > 0 {
+		last := strings.TrimRight(blockLines[n-1], ")")
+		blockLines[n-1] = strings.TrimSpace(last)
+	}
+
 	var params []ParamDetail
 	var pendingMandatory bool
 	var pendingValidateSet []string
-	for _, raw := range blockLines {
-		line := strings.TrimSpace(raw)
+	for _, line := range blockLines {
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}

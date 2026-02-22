@@ -282,6 +282,37 @@ function test_func {
 	}
 }
 
+func TestParsePowerShellParamBlock_Inline(t *testing.T) {
+	baseDir := t.TempDir()
+	pluginsDir := filepath.Join(baseDir, "plugins")
+	if err := os.MkdirAll(pluginsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	src := `<#
+.SYNOPSIS
+Inline param test
+.PARAMETER Message
+The message
+#>
+function inline_func {
+    param([Parameter(Mandatory = $true)][string]$Message)
+    Write-Output $Message
+}
+`
+	path := filepath.Join(pluginsDir, "inline.ps1")
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	params := parsePowerShellParamBlock(path, "inline_func")
+	if len(params) != 1 {
+		t.Fatalf("expected 1 param, got %d: %+v", len(params), params)
+	}
+	msg := params[0]
+	if msg.Name != "Message" || !msg.Mandatory || msg.Type != "string" {
+		t.Fatalf("unexpected param: %+v", msg)
+	}
+}
+
 func TestParsePowerShellParamBlock_NoParams(t *testing.T) {
 	baseDir := t.TempDir()
 	pluginsDir := filepath.Join(baseDir, "plugins")
